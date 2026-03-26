@@ -362,7 +362,35 @@ if st.sidebar.button("開始執行診斷"):
 
         # 最終操作建議 (僅供參考)
         st.info(f"🔍 **操作核心建議**：目前 {股票代號} 的籌碼集中度為 `{籌碼集中度:.2f}%`。若集中度轉正且 RSI 站回 30 以上，則具備更強的『軋空』底氣。")
+# --- 9. AI 投資顧問「白話」分析 ---
+import google.generativeai as genai
 
+st.markdown("---")
+st.subheader("🤖 AI 投資顧問「白話」分析")
+
+# 檢查保險箱裡有沒有 Key，防止程式壞掉
+if "GEMINI_API_KEY" in st.secrets:
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        if st.button("點我生成 AI 深度報告"):
+            with st.spinner("AI 正在研讀數據中..."):
+                # 這裡把我們前面辛苦算好的數據餵給 AI
+                ai_prompt = f"""
+                你是一位專業的台股分析師，請針對以下數據提供 300 字以內的「繁體中文」大白話投資建議：
+                股票代號：{股票代號}
+                最新收盤價：{最新股價} (5MA: {最新5MA:.2f})
+                籌碼面：今日法人買賣超狀況 {latest_day.to_dict()}，借券餘額 {最新借券餘額} 張。
+                基本面：最新季度營收 {最新營收/1e8:.2f} 億元，毛利率 {latest_gp:.2f}%。
+                請告訴我這檔股票目前的風險與機會在哪裡？並做出建議（買進、持股續抱、加碼、獲利了結）。
+                """
+                response = model.generate_content(ai_prompt)
+                st.info(response.text)
+    except Exception as e:
+        st.warning(f"AI 模組連接中...請稍後再試。")
+else:
+    st.error("🔑 尚未設定 API Key，請至 Streamlit Secrets 設定 GEMINI_API_KEY。")
     except Exception as e:
         st.error(f"❌ 診斷失敗：{e}")
 else:
