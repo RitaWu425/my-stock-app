@@ -49,6 +49,22 @@ st.sidebar.header("📊 診斷參數設定")
 if st.sidebar.button("開始執行診斷"):
     dl = DataLoader()
     
+    # --- 預設值初始化 (移到最前面，防止 AI 報錯) ---
+    最新營收 = 0
+    latest_gp = 0
+    最新股價 = 0
+    最新5MA = 0
+    最新RSI = 0
+    借券淨變動 = 0
+    最新借券餘額 = 0
+    連續回補 = 0
+    還券比 = 0  
+
+    try:
+        # 資料抓取
+        with st.spinner('正在從 FinMind 抓取資料...'):
+            # ... (後續抓取邏輯不變，請確保縮排正確)
+    
     try:
         # 資料抓取
         with st.spinner('正在從 FinMind 抓取資料...'):
