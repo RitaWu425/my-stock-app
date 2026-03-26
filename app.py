@@ -61,11 +61,6 @@ if st.sidebar.button("開始執行診斷"):
     還券比 = 0  
 
     try:
-        # 資料抓取
-        with st.spinner('正在從 FinMind 抓取資料...'):
-            # ... (後續抓取邏輯不變，請確保縮排正確)
-    
-    try:
         # 1. 資料抓取
         with st.spinner('正在從 FinMind 抓取資料...'):
             # --- 注意：以下這幾行必須比 with 縮排 4 個空格 ---
