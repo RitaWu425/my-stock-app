@@ -388,40 +388,44 @@ if st.sidebar.button("開始執行診斷"):
 
 # --- (前面是你的圖表程式碼，例如 st.pyplot(fig_inst) ) ---
 
-        # --- 9. AI 投資顧問「白話」分析 (放入大 try 區塊內) ---
-        st.markdown("---")
-        st.subheader("🤖 AI 投資顧問「白話」分析")
-
+        # --- 9. AI 投資顧問分析 ---
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                # 嘗試建立模型
-                try:
-                    ai_model = genai.GenerativeModel('gemini-1.5-flash')
-                except:
-                    ai_model = genai.GenerativeModel('gemini-pro')
                 
-                with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
-                    # 這裡確保所有變數 (如 latest_gp) 都在這個大 try 裡面定義過了
-                    ai_prompt = f"""
-                    你是一位精通台股與籌碼分析的專家，請針對以下數據提供 200 字內的「繁體中文」大白話投資建議：
-                    股票：{股票代號} {股名}
-                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
-                    籌碼面：法人近5日買賣超 {latest_day.to_dict()}，借券餘額 {最新借券餘額} 張。
-                    基本面：最新季度營收 {最新營收/1e8:.2f} 億元，毛利率 {latest_gp:.2f}%。
-                    請直接告訴我：這檔股票目前的亮點在哪？最大的風險是什麼？
-                    """
-                    response = ai_model.generate_content(ai_prompt)
-                    st.info(f"💡 **AI 診斷結果**：\n\n{response.text}")
+                # 這裡改用最保險的順序：先試 1.5-flash，不行就試 gemini-pro
+                model_names = ['models/gemini-1.5-flash', 'gemini-1.5-flash', 'gemini-pro']
+                ai_model = None
+                
+                for name in model_names:
+                    try:
+                        ai_model = genai.GenerativeModel(name)
+                        # 測試是否能用，若不行會跳到 except
+                        break 
+                    except:
+                        continue
+                
+                if ai_model:
+                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
+                        ai_prompt = f"""
+                        你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
+                        股票：{股票代號} {股名}
+                        技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                        籌碼面：法人近5日買賣超 {latest_day.to_dict()}，借券餘額 {最新借券餘額} 張。
+                        基本面：最新季度營收 {最新營收/1e8:.2f} 億元，毛利率 {latest_gp:.2f}%。
+                        請直接告訴我：這檔股票目前的亮點在哪？最大的風險是什麼？並做進出場建議(買進、加碼、續抱、獲利了結)。
+                        """
+                        response = ai_model.generate_content(ai_prompt)
+                        st.info(f"💡 **AI 診斷結果**：\n\n{response.text}")
             except Exception as ai_err:
-                st.warning(f"🕒 AI 暫時無法生成報告：{ai_err}")
+                st.warning(f"🕒 AI 服務忙碌中，請稍後再試。({ai_err})")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
     except Exception as e:
-        # 這是最外層的錯誤處理
-        # 為了不讓「首頁訊息」消失，我們加一個判斷
-        if "股票代號" in locals():
-            st.error(f"❌ 診斷失敗，錯誤代碼：{e}")
-        else:
-            st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
+        # 只要不是因為按下按鈕觸發的錯誤，都顯示首頁提示
+        st.error(f"❌ 診斷過程發生錯誤：{e}")
+        
+    # 重點：把這行移出 except 之外，確保它在「沒按按鈕」時一定會出現
+    if not st.sidebar.button("開始執行診斷", key="check_run") and "股名" not in locals():
+        st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
