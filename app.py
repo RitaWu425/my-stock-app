@@ -66,8 +66,9 @@ if st.sidebar.button("開始執行診斷"):
             # ... (後續抓取邏輯不變，請確保縮排正確)
     
     try:
-        # 資料抓取
+        # 1. 資料抓取
         with st.spinner('正在從 FinMind 抓取資料...'):
+            # --- 注意：以下這幾行必須比 with 縮排 4 個空格 ---
             個股資訊 = dl.taiwan_stock_info()
             股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
             
@@ -75,7 +76,8 @@ if st.sidebar.button("開始執行診斷"):
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-# 強制抓取過去 365 天的財報，確保一定能抓到最新一季
+            
+            # 強制抓取過去 365 天的財報，確保一定能抓到最新一季
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
  # 抓取法人買賣超資料 (取最近 30 天以確保有足夠五日數據)
