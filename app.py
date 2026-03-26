@@ -101,7 +101,7 @@ else:
             latest_day_dict = {"提示": "法人資料解析中"}
             籌碼集中度 = 0
 
-        # --- 5. 輸出報告儀表板 ---
+        # --- 5. 網頁視覺化輸出：儀表板 ---
         st.title(f"📈 {股票代號} {股名} 終極診斷報告")
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("最新股價", f"{最新股價}", f"{最新股價-昨日['close']:.2f}")
@@ -109,79 +109,93 @@ else:
         col3.metric("RSI 指標", f"{最新RSI:.1f}")
         col4.metric("籌碼集中度", f"{籌碼集中度:.2f}%")
 
-        # --- 6. 借券與信用分析 ---
+        # --- 6. 法人與信用 (保留區塊) ---
         st.markdown("---")
-        st.subheader("📉 借券與信用數據")
-        c1, c2, c3, c4 = st.columns(4)
+        c1, c2 = st.columns(2)
         
+        def get_net_buy(df, name):
+            target = df[df['name'] == name]
+            return (target['buy'].sum() - target['sell'].sum()) // 1000
+
+        區間外資 = get_net_buy(法人資料, 'Foreign_Investor')
+        區間投信 = get_net_buy(法人資料, 'Investment_Trust')
+        區間自營 = get_net_buy(法人資料, 'Dealer_self')
+        區間權證 = get_net_buy(法人資料, 'Dealer_Hedging')
+        
+        今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
+        融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
+
+        with c1:
+            st.subheader("👥 法人與權證動向")
+            st.write(f"外資：`{區間外資:+,d}` | 投信：`{區間投信:+,d}`")
+            st.write(f"自營商：`{區間自營:+,d}` | 權證避險：`{區間權證:+,d}`")
+        with c2:
+            st.subheader("📉 信用與借券數據")
+            st.write(f"融資變動：`{今日融資變動:+,d}` 張")
+            st.write(f"融券總餘額：`{融券總餘額:,.0f}` 張")
+
+        # --- 7. 借券解析邏輯 ---
         if not 借券資料.empty:
             sbl_最新 = 借券資料.iloc[-1]
             最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
             今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
-            還券比 = (今日還券 / 最新['Vol_Lots']) * 100 if 最新['Vol_Lots'] > 0 else 0
+            今日借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
+            今日張數 = 最新['Vol_Lots']
+            還券比 = (今日還券 / 今日張數) * 100 if 今日張數 > 0 else 0
             
-            c1.metric("最新借券餘額", f"{最新借券餘額:,.0f} 張")
-            c2.metric("今日還券", f"{今日還券:,.0f} 張")
-            c3.metric("還券比", f"{還券比:.2f}%")
-        
-        if not 融資券資料.empty:
-            margin_latest = 融資券資料.iloc[-1]
-            margin_prev = 融資券資料.iloc[-2]
-            今日融資變動 = (margin_latest['MarginPurchaseTodayBalance'] - margin_prev['MarginPurchaseTodayBalance']) // 1000
-            c4.metric("今日融資變動", f"{今日融資變動:+,d} 張")
+            連續回補 = 0
+            for i in range(len(借券資料)-1, -1, -1):
+                if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']: 
+                    連續回補 += 1
+                else: break
+            
+            st.info(f"💡 **借券摘要**：目前連續回補 `{連續回補}` 天。最新餘額 `{最新借券餘額:,.0f}` 張，還券力道 `{還券比:.2f}%`。")
 
-        # --- 7. 文字拆解說明 (補回原本消失的部分) ---
+        # --- 8. 🔍 數據深度拆解說明 (補回此段) ---
         st.markdown("---")
         st.subheader("🔍 數據深度拆解說明")
-        tl, tr = st.columns(2)
-        with tl:
-            st.write(f"● **[技術面]**: {'✅ 股價站在均線上' if 最新股價 > 最新5MA else '⚠️ 均線壓制中'}")
-            st.write(f"● **[指標面]**: RSI 目前為 `{最新RSI:.1f}`，{'指標偏弱' if 最新RSI < 40 else '指標中性偏強'}")
-        with tr:
-            st.write(f"● **[量價面]**: 今日成交 `{最新['Vol_Lots']:,.0f}` 張")
-            st.write(f"● **[籌碼面]**: 法人近五日累積買賣約 `{法人總計:+,d}` 張")
+        col_left, col_right = st.columns(2)
+        with col_left:
+            st.write(f"● **[技術面]**: {'✅ 股價站在 5MA 之上，短線轉強。' if 最新股價 > 最新5MA else '⚠️ 股價低於 5MA，仍受均線壓制。'}")
+            分析法人 = "外資、投信同步站回買方，底氣較足。" if 區間外資 > 0 and 區間投信 > 0 else "法人買賣力道交錯，尚無一致共識。"
+            st.write(f"● **[法人面]**: {分析法人}")
+        with col_right:
+            st.write(f"● **[指標面]**: RSI(`{最新RSI:.1f}`) 處於 {'超賣區' if 最新RSI < 30 else '中性區'}。")
+            if '今日張數' in locals() and 股價資料['Vol_Lots'].rolling(5).mean().iloc[-1] > 0:
+                均量 = 股價資料['Vol_Lots'].rolling(5).mean().iloc[-1]
+                力道 = "🔥 買盤積極：成交量高於均量。" if 今日張數 > 均量 else "🧊 追價乏力：量能萎縮中。"
+                st.write(f"● **[量價面]**: {力道}")
 
-        # --- 8. 繪圖區 (戰情圖 + 基本面) ---
+        # --- 9. 圖表顯示 ---
         st.subheader("📊 籌碼與技術戰情圖")
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-        ax1.plot(股價資料['date'], 股價資料['close'], label='收盤價', color='blue')
-        ax1.plot(股價資料['date'], 股價資料['5MA'], label='5MA', color='orange', linestyle='--')
-        ax1.legend()
-        ax1.grid(True, alpha=0.3)
-        
-        if not 借券資料.empty:
-            ax2.bar(pd.to_datetime(借券資料['date']), (借券資料['SBLShortSalesReturns'] - 借券資料['SBLShortSalesShortSales'])//1000, color='green', alpha=0.5, label='淨回補')
-            ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+        fig, ax = plt.subplots(figsize=(12, 5))
+        ax.plot(股價資料['date'], 股價資料['close'], label='收盤價', color='blue')
+        ax.plot(股價資料['date'], 股價資料['5MA'], label='5MA', color='orange', linestyle='--')
+        ax.legend()
         st.pyplot(fig)
 
-        # --- 9. AI 投資顧問 (修正無內容問題) ---
+        # --- 10. AI 投資顧問分析 (強化版) ---
         st.markdown("---")
-        st.subheader("🤖 AI 投資顧問分析")
-        
+        st.subheader("🤖 AI 投資顧問「白話」分析")
         if "GEMINI_API_KEY" in st.secrets:
-            api_key = st.secrets["GEMINI_API_KEY"]
             try:
-                genai.configure(api_key=api_key)
-                # 使用最穩定的 1.5-flash 模型名稱
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                
-                ai_prompt = f"""
-                請以台股專家身份，針對股票 {股票代號} {股名} 提供白話建議。
-                當前股價：{最新股價}，RSI：{最新RSI:.1f}，籌碼集中度：{籌碼集中度:.2f}%。
-                法人動向：{latest_day_dict}。
-                請分析目前亮點、風險，並給出「買進/加碼/續抱/減碼」其中一個結論。
-                """
-                
-                with st.spinner("🤖 AI 正在思考中..."):
-                    response = model.generate_content(ai_prompt)
-                    if response.text:
-                        st.info(f"💡 **AI 診斷建議**：\n\n{response.text}")
-                    else:
-                        st.warning("AI 生成了空內容，請稍後再試。")
-            except Exception as e:
-                st.error(f"AI 呼叫失敗：{e}")
-        else:
-            st.warning("⚠️ 找不到 GEMINI_API_KEY，請檢查 Streamlit Secrets。")
-
-    except Exception as e:
-        st.error(f"❌ 診斷失敗：{e}")
+                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                model_names = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
+                ai_content = ""
+                for m_name in model_names:
+                    try:
+                        model = genai.GenerativeModel(m_name)
+                        ai_prompt = f"""
+                        你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
+                        股票：{股票代號} {股名}
+                        技術面：價格 {最新股價}，5MA {最新5MA:.2f}，RSI {最新RSI:.1f}。
+                        籌碼面：外資{區間外資:+,d}，投信{區間投信:+,d}，借券餘額{最新借券餘額}張，連續回補{連續回補}天。
+                        請分析亮點與風險，並做進出場建議(買進、加碼、續抱、獲利了結)。
+                        """
+                        response = model.generate_content(ai_prompt)
+                        ai_content = response.text
+                        break
+                    except: continue
+                if ai_content: st.info(f"💡 **AI 診斷結果**：\n\n{ai_content}")
+                else: st.warning("🕒 AI 引擎目前忙碌，請稍後再試。")
+            except Exception as e: st.error(f"AI 啟動失敗：{e}")
