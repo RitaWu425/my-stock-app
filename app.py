@@ -226,46 +226,62 @@ if st.sidebar.button("開始執行診斷"):
         
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         st.pyplot(fig)
-# --- 6. 新增：基本面財報趨勢圖 ---
-        if not 基本面資料.empty:
-            st.markdown("---")
-            st.subheader("📉 近四季財報營收趨勢")
-            
-            # 過濾營收資料並取最後 4 季
-            df_rev_plot = 基本面資料[基本面資料['type'] == 'Revenue'].copy()
-            
-            if len(df_rev_plot) >= 1:
-                # 僅取最後 4 筆，並將單位轉為「億」
-                df_rev_plot = df_rev_plot.tail(4)
-                df_rev_plot['value_billion'] = df_rev_plot['value'] / 1e8
+# --- ６. 基本面：營收與毛利雙軸圖 (進階版) ---
+        st.markdown("---")
+        st.subheader("📉 基本面：營收與毛利率趨勢")
+
+        fund_start_date = (pd.Timestamp.now() - pd.Timedelta(days=500)).strftime('%Y-%m-%d')
+        
+        try:
+            fund_data = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=fund_start_date)
+
+            if not fund_data.empty:
+                # 準備營收資料
+                df_rev = fund_data[fund_data['type'] == 'Revenue'].tail(4).copy()
+                # 準備毛利率資料 (營業毛利 / 營業收入 * 100)
+                df_gp = fund_data[fund_data['type'] == 'GrossProfit'].tail(4).copy()
                 
-                # 建立畫布
-                fig_rev, ax_rev = plt.subplots(figsize=(10, 4))
-                bars = ax_rev.bar(df_rev_plot['date'], df_rev_plot['value_billion'], 
-                                  color='skyblue', edgecolor='navy', alpha=0.8, width=0.5)
-                
-                # 在長條圖上方標註數值
-                for bar in bars:
-                    yval = bar.get_height()
-                    ax_rev.text(bar.get_x() + bar.get_width()/2, yval + 0.1, 
-                                f'{yval:.1f}億', ha='center', va='bottom', fontsize=10)
-                
-                ax_rev.set_ylabel('營收 (單位：億元)')
-                ax_rev.set_title(f'{股票代號} {股名} - 季度營收走勢', fontsize=14)
-                ax_rev.grid(axis='y', linestyle='--', alpha=0.6)
-                
-                # 顯示圖表
-                st.pyplot(fig_rev)
-                
-                # 簡單趨勢判斷
-                if len(df_rev_plot) >= 2:
-                    last_rev = df_rev_plot['value_billion'].iloc[-1]
-                    prev_rev = df_rev_plot['value_billion'].iloc[-2]
-                    growth = ((last_rev - prev_rev) / prev_rev) * 100
-                    status = "📈 成長" if growth > 0 else "📉 衰退"
-                    st.write(f"💡 **成長性分析**：最新季度營收較上一季 {status} `{abs(growth):.2f}%`。")
+                if not df_rev.empty and not df_gp.empty:
+                    # 合併資料確保日期對齊
+                    df_merge = pd.merge(df_rev[['date', 'value']], df_gp[['date', 'value']], on='date', suffixes=('_rev', '_gp'))
+                    df_merge['rev_billion'] = df_merge['value_rev'] / 1e8
+                    df_merge['gp_margin'] = (df_merge['value_gp'] / df_merge['value_rev']) * 100
+
+                    # 開始繪圖
+                    fig_f, ax1 = plt.subplots(figsize=(10, 5))
+                    
+                    # 1. 繪製營收長條圖 (左軸)
+                    bars = ax1.bar(df_merge['date'], df_merge['rev_billion'], color='#BDD7EE', label='季度營收(億)', width=0.4)
+                    ax1.set_ylabel('營收 (億元)', color='#2F5597', fontweight='bold')
+                    ax1.tick_params(axis='y', labelcolor='#2F5597')
+                    
+                    # 2. 建立右軸繪製毛利率折線
+                    ax2 = ax1.twinx()
+                    ax2.plot(df_merge['date'], df_merge['gp_margin'], color='#ED7D31', marker='o', linewidth=3, label='毛利率(%)')
+                    ax2.set_ylabel('毛利率 (%)', color='#ED7D31', fontweight='bold')
+                    ax2.tick_params(axis='y', labelcolor='#ED7D31')
+                    ax2.set_ylim(df_merge['gp_margin'].min() - 5, df_merge['gp_margin'].max() + 5) # 自動調整間距
+
+                    # 標註毛利率數值
+                    for i, txt in enumerate(df_merge['gp_margin']):
+                        ax2.annotate(f'{txt:.1f}%', (df_merge['date'].iloc[i], df_merge['gp_margin'].iloc[i]), 
+                                     textcoords="offset points", xytext=(0,10), ha='center', color='#C65911', fontweight='bold')
+
+                    plt.title(f"{股票代號} {股名} - 獲利能力分析", fontsize=14)
+                    st.pyplot(fig_f)
+                    
+                    # 💡 自動分析文字
+                    latest_gp = df_merge['gp_margin'].iloc[-1]
+                    prev_gp = df_merge['gp_margin'].iloc[-2]
+                    gp_trend = "📈 提升" if latest_gp > prev_gp else "📉 下滑"
+                    st.info(f"💡 **獲利評測**：最新毛利率為 `{latest_gp:.2f}%`，較上季 {gp_trend}。")
+                else:
+                    st.warning("⚠️ 財報科目不足，無法計算毛利率。")
             else:
-                st.write("查無足夠的營收季度資料供繪圖。")
+                st.warning("⚠️ 查無財報資料。")
+
+        except Exception as e:
+            st.write("ℹ️ 基本面數據加載中或暫無資料。")
 
         # --- 7. 新增：三大法人近五日買賣超圖 ---
         if not 法人資料.empty:
