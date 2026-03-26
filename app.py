@@ -59,8 +59,9 @@ if st.sidebar.button("開始執行診斷"):
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-# 抓取基本面：損益表
-            基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=str(開始日期))
+# 強制抓取過去 365 天的財報，確保一定能抓到最新一季
+            財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
+            基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
         
         # --- 3. 核心數據計算 ---
         股價資料['date'] = pd.to_datetime(股價資料['date'])
@@ -150,16 +151,31 @@ if st.sidebar.button("開始執行診斷"):
             # [指標面] (補齊)
             st.write(f"● **[指標面]**: {'RSI 超賣 ({:.1f})，注意跌深反彈訊號。'.format(最新RSI) if 最新RSI < 30 else 'RSI 指標目前處於中性區間。'}")
             
-            # [基本面] (新增)
+            # [基本面] (優化版)
             if not 基本面資料.empty:
                 try:
-                    # 抓取最新一季的毛利或營收項目
-                    最新營收 = 基本面資料[基本面資料['type'] == 'Revenue']['value'].iloc[-1]
-                    st.write(f"● **[基本面]**: 最新季度營收約 `{最新營收/1e8:.2f}` 億元。建議搭配法說會展望觀察毛利變化。")
-                except:
-                    st.write("● **[基本面]**: 暫無最新季度財報數據，請參考月營收資訊。")
+                    # 篩選營業收入與營業利益
+                    df_rev = 基本面資料[基本面資料['type'] == 'Revenue']
+                    df_oi = 基本面資料[基本面資料['type'] == 'OperatingIncome']
+                    
+                    if not df_rev.empty:
+                        最新營收 = df_rev['value'].iloc[-1]
+                        最新日期 = df_rev['date'].iloc[-1]
+                        
+                        # 簡單判斷營收規模 (以億為單位)
+                        st.write(f"● **[基本面]**: 最新財報日 `{最新日期}`。季度營收約 `{最新營收/1e8:.2f}` 億元。")
+                        
+                        # 如果有營業利益，判斷是否獲利
+                        if not df_oi.empty:
+                            最新利益 = df_oi['value'].iloc[-1]
+                            本業狀態 = "✅ 本業獲利" if 最新利益 > 0 else "⚠️ 本業虧損"
+                            st.write(f"  └─ {本業狀態}：營業利益 `{最新利益/1e8:.2f}` 億元。")
+                    else:
+                        st.write("● **[基本面]**: 財報格式不符，建議至公開觀測站確認。")
+                except Exception as e:
+                    st.write(f"● **[基本面]**: 解析財報時發生小誤差。")
             else:
-                st.write("● **[基本面]**: 區間內查無財報資料。")
+                st.write("● **[基本面]**: 即使追蹤一年仍查無財報，請確認代號是否為 ETF 或特殊股。")
 
             # [量價面]
             if 今日張數 > 今日5MA量 and 最新股價 > 昨日['close']:
