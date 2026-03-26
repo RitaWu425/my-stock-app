@@ -362,6 +362,10 @@ if st.sidebar.button("開始執行診斷"):
 
         # 最終操作建議 (僅供參考)
         st.info(f"🔍 **操作核心建議**：目前 {股票代號} 的籌碼集中度為 `{籌碼集中度:.2f}%`。若集中度轉正且 RSI 站回 30 以上，則具備更強的『軋空』底氣。")
+
+except Exception as e:
+        st.error(f"❌ 診斷失敗：{e}")
+
 # --- 9. AI 投資顧問「白話」分析 ---
 import google.generativeai as genai
 
@@ -391,7 +395,6 @@ if "GEMINI_API_KEY" in st.secrets:
         st.warning(f"AI 模組連接中...請稍後再試。")
 else:
     st.error("🔑 尚未設定 API Key，請至 Streamlit Secrets 設定 GEMINI_API_KEY。")
-    except Exception as e:
-        st.error(f"❌ 診斷失敗：{e}")
+    
 else:
     st.write("👈 請在左側輸入代號並點擊「開始執行診斷」")
