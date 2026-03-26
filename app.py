@@ -363,34 +363,39 @@ if st.sidebar.button("開始執行診斷"):
         # 最終操作建議 (僅供參考)
         st.info(f"🔍 **操作核心建議**：目前 {股票代號} 的籌碼集中度為 `{籌碼集中度:.2f}%`。若集中度轉正且 RSI 站回 30 以上，則具備更強的『軋空』底氣。")
 
-# --- 原本最後一個圖表或分析的結束 ---
-        st.pyplot(fig_inst) 
+# --- 9. AI 投資顧問「白話」分析 (自動生成 + 自動偵測模型版) ---
+        st.markdown("---")
+        st.subheader("🤖 AI 投資顧問「白話」分析")
 
-    except Exception as e:
-        # 這裡是原本那個 try 的結尾，一定要有這兩行且不能縮排
-        st.error(f"❌ 診斷失敗，錯誤代碼：{e}")
-
-# --- 接下來這段 AI 程式碼「絕對不要」縮排，要靠最左邊 ---
-import google.generativeai as genai
-
-st.markdown("---")
-st.subheader("🤖 AI 投資顧問「白話」分析")
-
-# 檢查 Secrets 裡面有沒有 Key
-if "GEMINI_API_KEY" in st.secrets:
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-1.5-flash-latest') 
-# 或者如果還是不行，改用：model = genai.GenerativeModel('gemini-pro')
-        
-        if st.button("點我生成 AI 深度報告"):
-            with st.spinner("AI 正在研讀數據中..."):
-                # 這裡要確保變數名稱跟前面定義的一致
-                # (如果你的變數是在上面的 try 裡面定義的，建議把 AI 區塊也移進去 try 裡面，但縮排要對)
-                ai_prompt = f"請分析股票代號 {股票代號}..." 
-                response = model.generate_content(ai_prompt)
-                st.info(response.text)
-    except Exception as ai_e:
-        st.error(f"AI 診斷發生錯誤：{ai_e}")
-else:
-    st.warning("🔑 尚未設定 API Key")
+        if "GEMINI_API_KEY" in st.secrets:
+            try:
+                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                
+                # --- 自動偵測模型邏輯 ---
+                # 先嘗試 1.5-flash，若失敗則切換至 gemini-pro
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # 測試性的小呼叫，確認模型可用
+                except:
+                    model = genai.GenerativeModel('gemini-pro')
+                
+                with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
+                    ai_prompt = f"""
+                    你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
+                    
+                    股票：{股票代號} {股名}
+                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                    籌碼面：法人近5日買賣超 {latest_day.to_dict()}，借券餘額 {最新借券餘額} 張。
+                    基本面：最新季度營收 {最新營收/1e8:.2f} 億元，毛利率 {latest_gp:.2f}%。
+                    
+                    請直接告訴我：這檔股票目前的亮點在哪？最大的風險是什麼？並做出建議（買進、持股續抱、加碼、獲利了結）。
+                    """
+                    response = model.generate_content(ai_prompt)
+                    st.info(f"💡 **AI 診斷結果**：\n\n{response.text}")
+                    
+            except Exception as e:
+                # 如果還是報錯，顯示更具體的引導
+                st.warning(f"🕒 AI 服務目前回應：{e}")
+                st.write("提示：請確認您的 Google AI Studio 是否已成功建立 API Key，或稍後再試。")
+        else:
+            st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
