@@ -8,7 +8,7 @@ import warnings
 import os
 import urllib.request
 from matplotlib import font_manager
-from datetime import datetime, time
+from datetime import datetime, timedelta, time
 
 # 基礎設定
 warnings.filterwarnings('ignore')
@@ -34,12 +34,10 @@ def init_all():
 
 dl = init_all()
 
-# --- 2. 結束日期自動判定 ---
+# --- 2. 結束日期自動判定 (預設為昨日) ---
 now = datetime.now()
-if now.time() >= time(14, 0):
-    default_end_date = now.date()
-else:
-    default_end_date = now.date() - pd.Timedelta(days=1)
+# 預設為昨天，若當天下午兩點後可考慮切換，但台股數據更新多為盤後，建議預設昨天最穩
+default_end_date = now.date() - timedelta(days=1)
 
 # --- 3. 側邊欄參數設定 ---
 st.sidebar.header("📊 診斷參數設定")
@@ -48,12 +46,23 @@ st.sidebar.header("📊 診斷參數設定")
 結束日期 = st.sidebar.date_input("結束日期", value=default_end_date)
 執行診斷 = st.sidebar.button("開始執行診斷")
 
+# --- 4. 畫面分支邏輯 ---
 if not 執行診斷:
     st.title("🚀 台股籌碼智慧診斷系統")
     st.info("👈 請在左側輸入設定，並按下「開始執行診斷」。")
+    
+    # 補回首頁缺失項目
+    st.markdown(f"💡 **目前系統判定日期**：資料擷取至 `{結束日期}`")
+    st.markdown("""
+    本系統整合以下深度分析：
+    - **籌碼面**：三大法人動向、融資券變動、借券回補天數。
+    - **基本面**：年度營收趨勢、最新毛利率變化。
+    - **技術面**：5MA 趨勢、RSI 強弱指標。
+    - **AI 顧問**：基於數據的投資亮點與風險分析。
+    """)
 else:
     try:
-        with st.spinner('正在擷取：技術、籌碼、財報、法人數據...'):
+        with st.spinner('正在從大數據庫擷取：技術、籌碼、財報、法人數據...'):
             # A. 資料抓取
             個股資訊 = dl.taiwan_stock_info()
             股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
@@ -64,16 +73,16 @@ else:
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             
-            # 2. 基本面數據 (修正 API 名稱為單數 statement)
+            # 2. 基本面數據
             財報年 = str(datetime.now().year - 1)
             營收資料 = dl.taiwan_stock_month_revenue(stock_id=股票代號, start_date=f"{財報年}-01-01")
             損益表 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=f"{財報年}-01-01")
 
             if 股價資料.empty:
-                st.error("此區間無交易資料。")
+                st.error("此區間無資料。")
                 st.stop()
 
-            # B. 核心運算
+            # B. 數據運算
             股價資料['date'] = pd.to_datetime(股價資料['date'])
             股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
             vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
@@ -86,6 +95,7 @@ else:
             今日張數 = 最新['Vol_Lots']
             今日5MA量 = 股價資料['Vol_Lots'].rolling(5).mean().iloc[-1]
 
+            # RSI
             delta = 股價資料['close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
@@ -119,7 +129,7 @@ else:
         c3.write(f"自營商：`{區間自營:+,d}` 張")
         c4.write(f"權證避險：`{區間權證:+,d}` 張")
 
-        # --- 7. 信用與借券數據 ---
+        # --- 7. 信用與借券數據詳解 ---
         st.subheader("📉 信用與借券數據詳解")
         d1, d2 = st.columns(2)
         今日融資變動, 融券總餘額 = 0, 0
@@ -157,22 +167,21 @@ else:
             gpm_df = 損益表[損益表['type'] == 'GrossProfitMargin']
             if not gpm_df.empty:
                 最新毛利 = gpm_df.iloc[-1]['value']
-                毛利率說明 = f"最新毛利率 `{最新毛利:.2f}%`，{'呈現成長趨勢' if 最新毛利 > gpm_df.iloc[-2]['value'] else '毛利稍有承壓'}。"
+                毛利率說明 = f"最新毛利率 `{最新毛利:.2f}%`，{'成長' if 最新毛利 > gpm_df.iloc[-2]['value'] else '衰退'}。"
 
         g1, g2 = st.columns(2)
-        分析法人 = '法人同步買進。' if 區間外資 > 0 and 區間投信 > 0 else '法人觀望力道交錯。'
+        與法人 = '法人同步買進。' if 區間外資 > 0 and 區間投信 > 0 else '法人觀望中。'
         with g1:
-            st.info(f"🚩 **[技術診斷]**: {'股價站在 5MA 之上，短線轉強。' if 最新股價 > 最新5MA else '股價低於 5MA，受壓明顯。'}\n\n🚩 **[籌碼診斷]**: {分析法人}")
+            st.info(f"🚩 **[技術診斷]**: {'短線轉強' if 最新股價 > 最新5MA else '受壓明顯'}\n\n🚩 **[籌碼診斷]**: {與法人}")
         with g2:
-            st.info(f"🚩 **[追價診斷]**: {'帶量攻擊，買盤積極。' if 今日張數 > 今日5MA量 else '量能萎縮，追價乏力。'}\n\n🚩 **[基本診斷]**: {毛利率說明}")
+            st.info(f"🚩 **[追價診斷]**: {'帶量攻擊' if 今日張數 > 今日5MA量 else '追價乏力'}\n\n🚩 **[基本診斷]**: {毛利率說明}")
 
-        # --- 9. 📊 綜合戰情圖 ---
+        # --- 9. 📊 綜合圖表 ---
         st.markdown("---")
-        st.subheader("📊 綜合戰情分析圖表")
-        tab1, tab2 = st.tabs(["價格與均線", "營收與毛利趨勢"])
+        tab1, tab2 = st.tabs(["價格均線圖", "營收毛利趨勢"])
         with tab1:
             fig1, ax1 = plt.subplots(figsize=(12, 5))
-            ax1.plot(股價資料['date'], 股價資料['close'], label='收盤價', color='#1f77b4', linewidth=2)
+            ax1.plot(股價資料['date'], 股價資料['close'], label='收盤價', color='#1f77b4')
             ax1.plot(股價資料['date'], 股價資料['5MA'], label='5MA', color='#ff7f0e', linestyle='--')
             ax1.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
             ax1.legend()
@@ -180,28 +189,24 @@ else:
         with tab2:
             if not 營收資料.empty:
                 fig2, ax2 = plt.subplots(figsize=(12, 5))
-                ax2.bar(pd.to_datetime(營收資料['date']), 營收資料['revenue']//1000000, label='營收(百萬)', color='#add8e6', alpha=0.7)
-                ax2.set_ylabel('營收')
+                ax2.bar(pd.to_datetime(營收資料['date']), 營收資料['revenue']//1000000, color='#add8e6', label='營收(百萬)')
                 if not 損益表.empty:
                     ax3 = ax2.twinx()
                     gpm_plot = 損益表[損益表['type'] == 'GrossProfitMargin']
                     ax3.plot(pd.to_datetime(gpm_plot['date']), gpm_plot['value'], color='red', marker='o', label='毛利率%')
-                    ax3.set_ylabel('毛利率(%)')
                 st.pyplot(fig2)
-            else: st.write("暫無營收圖表資料")
 
-        # --- 10. 🤖 AI 投資顧問 ---
+        # --- 10. AI 診斷 ---
         st.markdown("---")
         st.subheader("🤖 AI 投資顧問分析")
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = f"分析台股{股票代號}{股名}: 價{最新股價}, RSI{最新RSI:.1f}, 外資{區間外資:+,d}, 借券回補{連續回補}天, {毛利率說明}。請給300字專業繁體中文建議。"
+                prompt = f"分析{股票代號}{股名}: 價{最新股價}, 外資{區間外資:+,d}, 借券回補{連續回補}天。提供繁體中文投資亮點與風險。"
                 response = model.generate_content(prompt)
                 st.info(response.text)
-            except: st.warning("🕒 AI 引擎目前忙碌中，請參考上方數據診斷。")
-        else: st.warning("⚠️ 找不到 GEMINI_API_KEY。")
+            except: st.warning("🕒 AI 引擎目前忙碌中。")
 
     except Exception as e:
-        st.error(f"❌ 診斷發生錯誤：{e}")}")
+        st.error(f"❌ 診斷發生錯誤：{e}")
