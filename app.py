@@ -2,7 +2,14 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import FinMind.data as dl
-import google.generativeai as genai  # <--- 確保這一行在最上面
+import google.generativeai as genai
+import warnings  # <--- 加上這一行，解決目前的 NameError
+
+# 加上這行後，就不會報錯了
+warnings.filterwarnings('ignore')
+
+# 接下來才是你的原本程式碼...
+# st.set_page_config(...)
 
 # --- 0. 網頁基本設定 ---
 st.set_page_config(page_title="股票籌碼診斷系統", layout="wide")
