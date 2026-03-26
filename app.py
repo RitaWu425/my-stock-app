@@ -51,13 +51,6 @@ st.sidebar.header("📊 診斷參數設定")
 if not 執行診斷:
     st.title("🚀 台股籌碼智慧診斷系統")
     st.info("👈 請在左側輸入設定，並按下「開始執行診斷」。")
-    st.markdown(f"💡 **目前系統判定日期**：資料擷取至 `{結束日期}`")
-    st.markdown("""
-    本系統整合以下深度分析：
-    - **籌碼面**：三大法人動向、融資券變動、借券回補天數。
-    - **技術面**：5MA 趨勢、RSI 強弱指標。
-    - **AI 顧問**：基於數據的投資亮點與風險分析。
-    """)
 else:
     try:
         with st.spinner('正在擷取：技術、籌碼、財報、法人數據...'):
@@ -211,4 +204,4 @@ else:
         else: st.warning("⚠️ 找不到 GEMINI_API_KEY。")
 
     except Exception as e:
-        st.error(f"❌ 診斷發生錯誤：{e}")
+        st.error(f"❌ 診斷發生錯誤：{e}")}")
