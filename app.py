@@ -79,22 +79,27 @@ else:
         股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
         股價資料['Vol_Lots'] = 股價資料['Trading_Volume'] // 1000
         
-        # RSI 計算
+        # RSI 計算 (補強邏輯)
         delta = 股價資料['close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
+        # 防止分母為 0
+        loss = loss.replace(0, 0.00001)
         股價資料['RSI'] = 100 - (100 / (1 + (gain/loss)))
 
         最新, 昨日 = 股價資料.iloc[-1], 股價資料.iloc[-2]
         最新股價, 最新5MA, 最新RSI = 最新['close'], 最新['5MA'], 最新['RSI']
 
-        # 法人計算
-        df_inst_sum = 法人資料.groupby(['date', 'name']).sum().unstack().tail(5)
-        latest_day = (df_inst_sum['buy'] - df_inst_sum['sell']).iloc[-1] // 1000
-        latest_day_dict = latest_day.to_dict()
-        
-        法人總計 = (法人資料['buy'].sum() - 法人資料['sell'].sum()) // 1000
-        籌碼集中度 = (法人總計 / 股價資料['Vol_Lots'].sum()) * 100
+        # 法人計算 (強健版)
+        try:
+            df_inst_sum = 法人資料.groupby(['date', 'name']).sum().unstack()
+            latest_day = (df_inst_sum['buy'] - df_inst_sum['sell']).iloc[-1] // 1000
+            latest_day_dict = latest_day.to_dict()
+            法人總計 = (法人資料['buy'].sum() - 法人資料['sell'].sum()) // 1000
+            籌碼集中度 = (法人總計 / 股價資料['Vol_Lots'].sum()) * 100
+        except:
+            latest_day_dict = {"提示": "法人資料解析中"}
+            籌碼集中度 = 0
 
         # --- 5. 輸出報告儀表板 ---
         st.title(f"📈 {股票代號} {股名} 終極診斷報告")
@@ -106,22 +111,40 @@ else:
 
         # --- 6. 借券與信用分析 ---
         st.markdown("---")
+        st.subheader("📉 借券與信用數據")
+        c1, c2, c3, c4 = st.columns(4)
+        
         if not 借券資料.empty:
             sbl_最新 = 借券資料.iloc[-1]
             最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
             今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
             還券比 = (今日還券 / 最新['Vol_Lots']) * 100 if 最新['Vol_Lots'] > 0 else 0
             
-            st.subheader("📉 借券關鍵數據")
-            c1, c2, c3 = st.columns(3)
             c1.metric("最新借券餘額", f"{最新借券餘額:,.0f} 張")
             c2.metric("今日還券", f"{今日還券:,.0f} 張")
             c3.metric("還券比", f"{還券比:.2f}%")
+        
+        if not 融資券資料.empty:
+            margin_latest = 融資券資料.iloc[-1]
+            margin_prev = 融資券資料.iloc[-2]
+            今日融資變動 = (margin_latest['MarginPurchaseTodayBalance'] - margin_prev['MarginPurchaseTodayBalance']) // 1000
+            c4.metric("今日融資變動", f"{今日融資變動:+,d} 張")
 
-        # --- 7. 繪圖區 (戰情圖 + 法人動向 + 基本面) ---
+        # --- 7. 文字拆解說明 (補回原本消失的部分) ---
+        st.markdown("---")
+        st.subheader("🔍 數據深度拆解說明")
+        tl, tr = st.columns(2)
+        with tl:
+            st.write(f"● **[技術面]**: {'✅ 股價站在均線上' if 最新股價 > 最新5MA else '⚠️ 均線壓制中'}")
+            st.write(f"● **[指標面]**: RSI 目前為 `{最新RSI:.1f}`，{'指標偏弱' if 最新RSI < 40 else '指標中性偏強'}")
+        with tr:
+            st.write(f"● **[量價面]**: 今日成交 `{最新['Vol_Lots']:,.0f}` 張")
+            st.write(f"● **[籌碼面]**: 法人近五日累積買賣約 `{法人總計:+,d}` 張")
+
+        # --- 8. 繪圖區 (戰情圖 + 基本面) ---
         st.subheader("📊 籌碼與技術戰情圖")
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-        ax1.plot(股價資料['date'], 股價資料['close'], label='收盤價', color='blue', linewidth=2)
+        ax1.plot(股價資料['date'], 股價資料['close'], label='收盤價', color='blue')
         ax1.plot(股價資料['date'], 股價資料['5MA'], label='5MA', color='orange', linestyle='--')
         ax1.legend()
         ax1.grid(True, alpha=0.3)
@@ -131,34 +154,34 @@ else:
             ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
         st.pyplot(fig)
 
-        # 基本面雙軸圖 (簡化穩定版)
-        if not 基本面資料.empty:
-            st.markdown("---")
-            st.subheader("📉 基本面：營收與毛利率")
-            df_rev = 基本面資料[基本面資料['type'] == 'Revenue'].tail(4)
-            df_gp = 基本面資料[基本面資料['type'] == 'GrossProfit'].tail(4)
-            if not df_rev.empty:
-                最新營收 = df_rev['value'].iloc[-1]
-                fig_f, ax_f = plt.subplots(figsize=(10, 4))
-                ax_f.bar(df_rev['date'], df_rev['value']/1e8, color='#BDD7EE', label='營收(億)')
-                st.pyplot(fig_f)
-
-        # --- 8. AI 投資顧問 (多重嘗試避免 404) ---
+        # --- 9. AI 投資顧問 (修正無內容問題) ---
         st.markdown("---")
         st.subheader("🤖 AI 投資顧問分析")
-        if "GEMINI_API_KEY" in st.secrets:
-            try:
-                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                # 遍歷可能的模型名稱
-                for m_name in ['gemini-1.5-flash', 'gemini-1.5-flash-001', 'gemini-pro']:
-                    try:
-                        model = genai.GenerativeModel(m_name)
-                        prompt = f"分析股票 {股票代號} {股名}，最新股價 {最新股價}，法人近五日買賣：{latest_day_dict}，借券餘額 {最新借券餘額}張。請直接告訴我：這檔股票目前的亮點在哪？最大的風險是什麼？並提供進出場建議（買進、加碼、續抱、獲利了結）。"
-                        response = model.generate_content(prompt)
-                        st.info(f"💡 **AI 診斷建議**：\n\n{response.text}")
-                        break
-                    except: continue
-            except: st.warning("AI 目前忙碌中。")
         
+        if "GEMINI_API_KEY" in st.secrets:
+            api_key = st.secrets["GEMINI_API_KEY"]
+            try:
+                genai.configure(api_key=api_key)
+                # 使用最穩定的 1.5-flash 模型名稱
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                ai_prompt = f"""
+                請以台股專家身份，針對股票 {股票代號} {股名} 提供白話建議。
+                當前股價：{最新股價}，RSI：{最新RSI:.1f}，籌碼集中度：{籌碼集中度:.2f}%。
+                法人動向：{latest_day_dict}。
+                請分析目前亮點、風險，並給出「買進/加碼/續抱/減碼」其中一個結論。
+                """
+                
+                with st.spinner("🤖 AI 正在思考中..."):
+                    response = model.generate_content(ai_prompt)
+                    if response.text:
+                        st.info(f"💡 **AI 診斷建議**：\n\n{response.text}")
+                    else:
+                        st.warning("AI 生成了空內容，請稍後再試。")
+            except Exception as e:
+                st.error(f"AI 呼叫失敗：{e}")
+        else:
+            st.warning("⚠️ 找不到 GEMINI_API_KEY，請檢查 Streamlit Secrets。")
+
     except Exception as e:
         st.error(f"❌ 診斷失敗：{e}")
