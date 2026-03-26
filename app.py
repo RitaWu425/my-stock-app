@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt  # <--- 補上這個，解決 plt 報錯
+import matplotlib.pyplot as plt
 from FinMind.data import DataLoader
 import google.generativeai as genai
 import warnings
-import os  # <--- 補上這個，解決 os.path 報錯
+import os
 import urllib.request
+from matplotlib import font_manager
 
 # 基礎設定
 warnings.filterwarnings('ignore')
@@ -13,42 +14,28 @@ warnings.filterwarnings('ignore')
 # --- 0. 網頁基本設定 ---
 st.set_page_config(page_title="股票籌碼診斷系統", layout="wide")
 
-# 初始化抓資料工具 (移到這裡確保全域可用)
+# 初始化抓資料工具
 dl = DataLoader()
 
-# --- 1. 中文字體處理 (防錯強化版) ---
+# --- 1. 中文字體處理 ---
 @st.cache_resource
 def install_font():
     font_path = 'font.ttf'
-    # 如果檔案不存在，才進行下載
+    # 這裡確保所有縮排都是 4 個空格
     if not os.path.exists(font_path):
         try:
-            # 使用更穩定的方式下載
             url = "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf"
             urllib.request.urlretrieve(url, font_path)
         except Exception as e:
             st.error(f"字體下載失敗: {e}")
     return font_path
 
-# 執行字體下載
+# 執行並設定字體
 font_file = install_font()
-
-# 設定 Matplotlib 使用字體
-from matplotlib import font_manager
 if os.path.exists(font_file):
     font_manager.font_manager.addfont(font_file)
     plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_file).get_name()
 plt.rcParams['axes.unicode_minus'] = False
-
-    # 再次確認檔案存在後才加入字體管理器
-    if os.path.exists(font_path):
-        import matplotlib.font_manager as fm
-        try:
-            fm.fontManager.addfont(font_path)
-            plt.rc('font', family='Noto Sans CJK TC')
-            plt.rcParams['axes.unicode_minus'] = False
-        except Exception as e:
-            st.warning(f"字體掛載警告: {e}")
 
 install_font()
 
