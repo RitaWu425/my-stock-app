@@ -3,3 +3,5 @@ FinMind
 pandas
 matplotlib
 numpy
+tqdm
+requests
