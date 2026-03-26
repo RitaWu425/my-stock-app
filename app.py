@@ -74,34 +74,7 @@ else:
             財報開始 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始)
 
-        # --- 4. 核心數據計算 ---
-        股價資料['date'] = pd.to_datetime(股價資料['date'])
-        股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
-        股價資料['Vol_Lots'] = 股價資料['Trading_Volume'] // 1000
-        
-        # RSI 計算 (補強邏輯)
-        delta = 股價資料['close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
-        # 防止分母為 0
-        loss = loss.replace(0, 0.00001)
-        股價資料['RSI'] = 100 - (100 / (1 + (gain/loss)))
-
-        最新, 昨日 = 股價資料.iloc[-1], 股價資料.iloc[-2]
-        最新股價, 最新5MA, 最新RSI = 最新['close'], 最新['5MA'], 最新['RSI']
-
-        # 法人計算 (強健版)
-        try:
-            df_inst_sum = 法人資料.groupby(['date', 'name']).sum().unstack()
-            latest_day = (df_inst_sum['buy'] - df_inst_sum['sell']).iloc[-1] // 1000
-            latest_day_dict = latest_day.to_dict()
-            法人總計 = (法人資料['buy'].sum() - 法人資料['sell'].sum()) // 1000
-            籌碼集中度 = (法人總計 / 股價資料['Vol_Lots'].sum()) * 100
-        except:
-            latest_day_dict = {"提示": "法人資料解析中"}
-            籌碼集中度 = 0
-
-        # --- 5. 網頁視覺化輸出：儀表板 ---
+# --- 5. 網頁視覺化輸出：儀表板 ---
         st.title(f"📈 {股票代號} {股名} 終極診斷報告")
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("最新股價", f"{最新股價}", f"{最新股價-昨日['close']:.2f}")
@@ -109,7 +82,7 @@ else:
         col3.metric("RSI 指標", f"{最新RSI:.1f}")
         col4.metric("籌碼集中度", f"{籌碼集中度:.2f}%")
 
-        # --- 6. 法人與信用 (保留區塊) ---
+        # --- 6. 法人與信用 ---
         st.markdown("---")
         c1, c2 = st.columns(2)
         
@@ -135,6 +108,8 @@ else:
             st.write(f"融券總餘額：`{融券總餘額:,.0f}` 張")
 
         # --- 7. 借券解析邏輯 ---
+        連續回補 = 0  # 預設值防止後面報錯
+        最新借券餘額 = 0
         if not 借券資料.empty:
             sbl_最新 = 借券資料.iloc[-1]
             最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
@@ -143,7 +118,6 @@ else:
             今日張數 = 最新['Vol_Lots']
             還券比 = (今日還券 / 今日張數) * 100 if 今日張數 > 0 else 0
             
-            連續回補 = 0
             for i in range(len(借券資料)-1, -1, -1):
                 if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']: 
                     連續回補 += 1
@@ -151,7 +125,7 @@ else:
             
             st.info(f"💡 **借券摘要**：目前連續回補 `{連續回補}` 天。最新餘額 `{最新借券餘額:,.0f}` 張，還券力道 `{還券比:.2f}%`。")
 
-        # --- 8. 🔍 數據深度拆解說明 (補回此段) ---
+        # --- 8. 🔍 數據深度拆解說明 ---
         st.markdown("---")
         st.subheader("🔍 數據深度拆解說明")
         col_left, col_right = st.columns(2)
@@ -161,10 +135,9 @@ else:
             st.write(f"● **[法人面]**: {分析法人}")
         with col_right:
             st.write(f"● **[指標面]**: RSI(`{最新RSI:.1f}`) 處於 {'超賣區' if 最新RSI < 30 else '中性區'}。")
-            if '今日張數' in locals() and 股價資料['Vol_Lots'].rolling(5).mean().iloc[-1] > 0:
-                均量 = 股價資料['Vol_Lots'].rolling(5).mean().iloc[-1]
-                力道 = "🔥 買盤積極：成交量高於均量。" if 今日張數 > 均量 else "🧊 追價乏力：量能萎縮中。"
-                st.write(f"● **[量價面]**: {力道}")
+            均量 = 股價資料['Vol_Lots'].rolling(5).mean().iloc[-1]
+            力道 = "🔥 買盤積極：成交量高於均量。" if 最新['Vol_Lots'] > 均量 else "🧊 追價乏力：量能萎縮中。"
+            st.write(f"● **[量價面]**: {力道}")
 
         # --- 9. 圖表顯示 ---
         st.subheader("📊 籌碼與技術戰情圖")
@@ -174,7 +147,7 @@ else:
         ax.legend()
         st.pyplot(fig)
 
-        # --- 10. AI 投資顧問分析 (強化版) ---
+        # --- 10. AI 投資顧問分析 ---
         st.markdown("---")
         st.subheader("🤖 AI 投資顧問「白話」分析")
         if "GEMINI_API_KEY" in st.secrets:
@@ -182,6 +155,8 @@ else:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 model_names = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
                 ai_content = ""
+                
+                # 多重嘗試不同模型名稱，解決 404
                 for m_name in model_names:
                     try:
                         model = genai.GenerativeModel(m_name)
@@ -194,8 +169,20 @@ else:
                         """
                         response = model.generate_content(ai_prompt)
                         ai_content = response.text
-                        break
-                    except: continue
-                if ai_content: st.info(f"💡 **AI 診斷結果**：\n\n{ai_content}")
-                else: st.warning("🕒 AI 引擎目前忙碌，請稍後再試。")
-            except Exception as e: st.error(f"AI 啟動失敗：{e}")
+                        if ai_content:
+                            break
+                    except Exception:
+                        continue
+                
+                if ai_content:
+                    st.info(f"💡 **AI 診斷結果**：\n\n{ai_content}")
+                else:
+                    st.warning("🕒 AI 引擎目前忙碌或 API 限制中，請稍後再試。")
+                    
+            except Exception as e:
+                st.error(f"AI 啟動過程中發生錯誤：{e}")
+        else:
+            st.warning("⚠️ 找不到 GEMINI_API_KEY，請確認 Secrets 設定。")
+
+    except Exception as e:
+        st.error(f"❌ 診斷失敗：{e}")
