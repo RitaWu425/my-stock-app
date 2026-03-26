@@ -3,9 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import FinMind.data as dl
 import google.generativeai as genai
-import warnings  # <--- 加上這一行，解決目前的 NameError
+import warnings
 
-# 加上這行後，就不會報錯了
+# 忽略警告訊息 (解決剛才的 NameError)
 warnings.filterwarnings('ignore')
 
 # 接下來才是你的原本程式碼...
