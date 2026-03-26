@@ -134,26 +134,57 @@ if st.sidebar.button("開始執行診斷"):
         st.write(f"● **[量價面]**: {'『帶量攻擊』且法人買進！【真買盤在追】。' if 今日張數 > 今日5MA量 and 最新股價 > 昨日['close'] and 區間外資 > 0 else '量能表現平平或買盤追價意願不足。'}")
 
         # 繪圖區
+        # --- 5. 繪圖 (修復日期格式報錯) ---
         st.subheader("📊 籌碼與技術戰情圖")
-        plot_df = 借券資料.copy()
-        plot_df['Net_回補'] = (plot_df['SBLShortSalesReturns'] - plot_df['SBLShortSalesShortSales']) // 1000
-        plot_df['Balance'] = plot_df['SBLShortSalesPreviousDayBalance'] // 1000
+        
+        # 準備繪圖資料，強制轉換日期格式以防報錯
+        plot_price = 股價資料.copy()
+        plot_sbl = 借券資料.copy()
+        plot_sbl['date'] = pd.to_datetime(plot_sbl['date'])
+        
+        plot_sbl['Net_回補'] = (plot_sbl['SBLShortSalesReturns'] - plot_sbl['SBLShortSalesShortSales']) // 1000
+        plot_sbl['Balance'] = plot_sbl['SBLShortSalesPreviousDayBalance'] // 1000
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-        ax1.plot(股價資料['date'], 股價資料['close'], label='收盤價', color='blue')
-        ax1.plot(股價資料['date'], 股價資料['5MA'], label='5MA', color='orange', linestyle='--')
-        ax1.legend()
-        ax2.bar(plot_df['date'], plot_df['Net_回補'], color='green', alpha=0.5, label='淨回補')
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+        fig.suptitle(f'{股票代號} {股名} - 戰情診斷', fontsize=20, fontweight='bold')
+
+        # 上圖：股價與均線
+        ax1.plot(plot_price['date'], plot_price['close'], label='收盤價', color='blue', linewidth=2)
+        ax1.plot(plot_price['date'], plot_price['5MA'], label='5MA', color='orange', linestyle='--')
+        ax1.set_ylabel('價格 (元)')
+        ax1.legend(loc='upper left')
+        ax1.grid(True, alpha=0.3)
+
+        # 下圖：借券淨變動 (長條圖) 與 借券餘額 (折線圖)
+        ax2.bar(plot_sbl['date'], plot_sbl['Net_回補'], label='淨回補量(張)', color='green', alpha=0.5)
+        ax2.set_ylabel('當日淨回補張數', color='green')
+        ax2.axhline(0, color='black', linewidth=1)
+        
         ax2_r = ax2.twinx()
-        ax2_r.plot(plot_df['date'], plot_df['Balance'], color='red', label='借券餘額')
+        ax2_r.plot(plot_sbl['date'], plot_sbl['Balance'], label='借券餘額', color='red', linewidth=2)
+        ax2_r.set_ylabel('總借券餘額 (張)', color='red')
+        
+        # [關鍵修正]：強制格式化 X 軸日期，避免 tz 報錯
         ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+        
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         st.pyplot(fig)
 
-        # 智慧診斷
-        st.success("🧠 **圖表智慧診斷**")
-        st.write(f"● **[趨勢]**: {'目前股價回測 5MA 之下' if 最新股價 < 最新5MA else '股價已站穩 5MA'}。")
-        st.write(f"● **[籌碼]**: 借券餘額 `{最新借券餘額:,.0f}` 張，空頭鎖單中。")
-        st.write(f"● **[診斷]**: RSI(`{最新RSI:.1f}`) 配合連續 `{連續回補}` 天回補，具備轉折特徵。")
+        # --- 6. 完整智慧診斷輸出 (補足資訊) ---
+        st.markdown("---")
+        st.success("🧠 **圖表智慧診斷總結**")
+        
+        diag_col1, diag_col2 = st.columns(2)
+        with diag_col1:
+            st.write(f"● **[趨勢判讀]**: {'⚠️ 均線壓制：目前股價回測 5MA 之下，空方佔優。' if 最新股價 < 最新5MA else '✅ 短線轉強：股價已站穩 5MA，開啟短期反彈。'}")
+            st.write(f"● **[籌碼鎖定]**: 借券餘額維持在 `{最新借券餘額:,.0f}` 張高檔。若餘額未減，代表大戶空頭尚未撤退。")
+        
+        with diag_col2:
+            st.write(f"● **[買盤力道]**: {'🔥 買盤積極：帶量且還券比上升，空頭被迫回補引發追價。' if 今日張數 > 今日5MA量 and 借券淨變動 < 0 else '🧊 追價乏力：量能萎縮，市場觀望氣氛濃厚。'}")
+            st.write(f"● **[指標訊號]**: RSI(`{最新RSI:.1f}`) 於 {'超賣區' if 最新RSI < 30 else '中性區'}。目前連續 `{連續回補}` 天出現回補跡象。")
+
+        # 最終操作建議 (僅供參考)
+        st.info(f"🔍 **操作核心建議**：目前 {股票代號} 的籌碼集中度為 `{籌碼集中度:.2f}%`。若集中度轉正且 RSI 站回 30 以上，則具備更強的『軋空』底氣。")
 
     except Exception as e:
         st.error(f"❌ 診斷失敗：{e}")
