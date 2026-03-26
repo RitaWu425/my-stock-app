@@ -62,7 +62,9 @@ if st.sidebar.button("開始執行診斷"):
 # 強制抓取過去 365 天的財報，確保一定能抓到最新一季
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
-        
+ # 抓取法人買賣超資料 (取最近 30 天以確保有足夠五日數據)
+            法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=開始日期)
+            
         # --- 3. 核心數據計算 ---
         股價資料['date'] = pd.to_datetime(股價資料['date'])
         股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
@@ -260,7 +262,51 @@ if st.sidebar.button("開始執行診斷"):
                     st.write(f"💡 **成長性分析**：最新季度營收較上一季 {status} `{abs(growth):.2f}%`。")
             else:
                 st.write("查無足夠的營收季度資料供繪圖。")
-        # --- 7. 完整智慧診斷輸出 (補足資訊) ---
+
+        # --- 7. 新增：三大法人近五日買賣超圖 ---
+        if not 法人資料.empty:
+            st.markdown("---")
+            st.subheader("🏦 三大法人近五日動向")
+            
+            # 整理資料：僅取外資、投信、自營商，並取最近 5 個交易日
+            df_inst = 法人資料.groupby(['date', 'name'])['buy'].sum() - 法人資料.groupby(['date', 'name'])['sell'].sum()
+            df_inst = df_inst.unstack().tail(5) / 1000 # 轉為張數
+            
+            if not df_inst.empty:
+                # 建立畫布
+                fig_inst, ax_inst = plt.subplots(figsize=(10, 5))
+                df_inst.plot(kind='bar', ax=ax_inst, width=0.8, color=['#FF9999', '#66B2FF', '#99FF99'])
+                
+                ax_inst.set_ylabel('買賣超張數 (張)')
+                ax_inst.set_title(f'{股票代號} 近五日法人進出', fontsize=14)
+                ax_inst.axhline(0, color='black', linewidth=1, alpha=0.5)
+                ax_inst.grid(axis='y', linestyle='--', alpha=0.4)
+                plt.xticks(rotation=0)
+                
+                st.pyplot(fig_inst)
+                
+                # --- 法人行為深度分析 ---
+                latest_day = df_inst.iloc[-1]
+                st.write("📝 **法人籌碼分析：**")
+                
+                # 判斷外資與投信
+                if latest_day['Foreign_Investor'] > 0 and latest_day['Investment_Trust'] > 0:
+                    st.write("✅ **[英雄所見略同]**：外資與投信今日同步買超，通常是強力的止跌或攻擊訊號。")
+                elif latest_day['Foreign_Investor'] < 0 and latest_day['Investment_Trust'] > 0:
+                    st.write("⚠️ **[土洋對作]**：投信力挺但外資在倒貨，需觀察 5MA 支撐是否能守住。")
+                elif latest_day['Foreign_Investor'] > 0 and latest_day['Investment_Trust'] < 0:
+                    st.write("⚠️ **[外熱內冷]**：外資回頭補貨，但內資投信先行獲利了結，股價易陷入震盪。")
+                else:
+                    st.write("❌ **[法人棄守]**：主要法人同步站回賣方，短線建議保守看待，避開殺低風險。")
+                    
+                # 補充：觀察投信連買
+                sitc_five_days = df_inst['Investment_Trust'].sum()
+                if sitc_five_days > 500: # 五日累積買超五百張以上
+                    st.write(f"🔥 **[投信鎖碼]**：投信近五日累計買超 `{sitc_five_days:.0f}` 張，有作帳行情或長期佈局的跡象。")
+            else:
+                st.write("暫無足夠的法人進出資料。")
+        
+        # --- 8. 完整智慧診斷輸出 (補足資訊) ---
         st.markdown("---")
         st.success("🧠 **圖表智慧診斷總結**")
         
