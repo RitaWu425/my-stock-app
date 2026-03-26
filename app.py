@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import FinMind.data as dl
+from FinMind.data import DataLoader  # <--- 重點：直接從子模組匯入 DataLoader
 import google.generativeai as genai
 import warnings
 
-# 忽略警告訊息 (解決剛才的 NameError)
 warnings.filterwarnings('ignore')
 
+# 接下來這行就不會報錯了
+dl = DataLoader()
 # 接下來才是你的原本程式碼...
 # st.set_page_config(...)
 
