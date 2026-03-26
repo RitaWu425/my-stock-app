@@ -59,7 +59,9 @@ if st.sidebar.button("開始執行診斷"):
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-
+# 抓取基本面：損益表
+            基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=str(開始日期))
+        
         # --- 3. 核心數據計算 ---
         股價資料['date'] = pd.to_datetime(股價資料['date'])
         股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
@@ -127,11 +129,43 @@ if st.sidebar.button("開始執行診斷"):
 
             st.info(f"💡 **借券賣出解析**：最新餘額 `{最新借券餘額:,.0f}` 張 | 連續回補 `{連續回補}` 天 | 還券比 `{還券比:.2f}%`")
 
-        # 深度拆解說明
+        # --- 數據深度拆解說明 (全面升級版) ---
         st.subheader("🔍 數據深度拆解說明")
-        st.write(f"● **[技術面]**: {'股價站上 5MA，短線轉強。' if 最新股價 > 最新5MA else '股價低於 5MA，均線壓制明顯。'}")
-        st.write(f"● **[法人面]**: {'外資、投信同步站回買方，法人底氣足。' if 區間外資 > 0 and 區間投信 > 0 else '法人買賣力道交錯，尚無一致共識。'}")
-        st.write(f"● **[量價面]**: {'『帶量攻擊』且法人買進！【真買盤在追】。' if 今日張數 > 今日5MA量 and 最新股價 > 昨日['close'] and 區間外資 > 0 else '量能表現平平或買盤追價意願不足。'}")
+        
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            # [技術面]
+            st.write(f"● **[技術面]**: {'股價高於 5MA，短線趨勢偏多。' if 最新股價 > 最新5MA else '股價低於 5MA，均線壓制明顯。'}")
+            
+            # [法人面]
+            分析法人 = "外資、投信同步站回買方，法人底氣足。" if 區間外資 > 0 and 區間投信 > 0 else "法人買賣力道交錯，尚無一致共識。"
+            st.write(f"● **[法人面]**: {分析法人}")
+            
+            # [籌碼面] (補齊)
+            分析籌碼 = "籌碼集中度偏高，法人控盤穩定。" if 籌碼集中度 > 2 else "籌碼集中度較低，股價易受散戶情緒影響。"
+            st.write(f"● **[籌碼面]**: {分析籌碼}")
+
+        with col_right:
+            # [指標面] (補齊)
+            st.write(f"● **[指標面]**: {'RSI 超賣 ({:.1f})，注意跌深反彈訊號。'.format(最新RSI) if 最新RSI < 30 else 'RSI 指標目前處於中性區間。'}")
+            
+            # [基本面] (新增)
+            if not 基本面資料.empty:
+                try:
+                    # 抓取最新一季的毛利或營收項目
+                    最新營收 = 基本面資料[基本面資料['type'] == 'Revenue']['value'].iloc[-1]
+                    st.write(f"● **[基本面]**: 最新季度營收約 `{最新營收/1e8:.2f}` 億元。建議搭配法說會展望觀察毛利變化。")
+                except:
+                    st.write("● **[基本面]**: 暫無最新季度財報數據，請參考月營收資訊。")
+            else:
+                st.write("● **[基本面]**: 區間內查無財報資料。")
+
+            # [量價面]
+            if 今日張數 > 今日5MA量 and 最新股價 > 昨日['close']:
+                st.write("● **[量價面]**: 『帶量攻擊』，顯示買盤追價意願強烈。")
+            else:
+                st.write("● **[量價面]**: 量能表現平平，目前動能尚未爆發。")
 
         # 繪圖區
         # --- 5. 繪圖 (修復日期格式報錯) ---
