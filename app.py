@@ -70,7 +70,6 @@ else:
     try:
         with st.spinner('正在分析數據中...'):
             # 1. 資料抓取
-        with st.spinner('正在從 FinMind 抓取資料...'):
             # --- 注意：以下這幾行必須比 with 縮排 4 個空格 ---
             個股資訊 = dl.taiwan_stock_info()
             股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
