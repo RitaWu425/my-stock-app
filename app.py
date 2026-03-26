@@ -163,7 +163,8 @@ else:
             c2.metric("今日借券賣出", f"{今日借券賣出:,.0f} 張", delta=f"{-今日借券賣出:,.0f}", delta_color="inverse")
             c3.metric("今日還券", f"{今日還券:,.0f} 張", delta=f"{今日還券:,.0f}")
             c4.metric("還券比", f"{還券比:.2f}%")
-# 2. 保留原本的文字解析摘要 (顏色標註更醒目)
+
+            # 2. 保留原本的文字解析摘要 (顏色標註更醒目)
             status_color = "🟢" if 連續回補 > 0 else "⚪"
             st.info(f"{status_color} **借券賣出摘要**：目前連續回補 `{連續回補}` 天。最新餘額 `{最新借券餘額:,.0f}` 張，整體還券力道為 `{還券比:.2f}%`。")
 
@@ -413,7 +414,7 @@ else:
                         """
                         response = ai_model.generate_content(ai_prompt)
                         st.info(f"💡 **AI 診斷結果**：\n\n{response.text}")
-except Exception as ai_err:
+            except Exception as ai_err:
                 st.warning(f"🕒 AI 服務忙碌中，請稍後再試。({ai_err})")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
@@ -425,3 +426,4 @@ except Exception as ai_err:
     # 重點：把這行移出 except 之外，確保它在「沒按按鈕」時一定會出現
     if not st.sidebar.button("開始執行診斷", key="check_run") and "股名" not in locals():
         st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
+
