@@ -13,15 +13,30 @@ st.set_page_config(page_title="股票籌碼診斷系統", layout="wide")
 # 阻斷警告
 warnings.filterwarnings('ignore')
 
-# --- 1. 中文字體處理 (針對 Streamlit Cloud 環境優化) ---
+# --- 1. 中文字體處理 (防錯強化版) ---
 @st.cache_resource
 def install_font():
-    if not os.path.exists('font.ttf'):
-        os.system('wget -O font.ttf https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf')
-    import matplotlib.font_manager as fm
-    fm.fontManager.addfont('font.ttf')
-    plt.rc('font', family='Noto Sans CJK TC')
-    plt.rcParams['axes.unicode_minus'] = False
+    font_path = 'font.ttf'
+    # 如果檔案不存在，才進行下載
+    if not os.path.exists(font_path):
+        try:
+            # 使用更穩定的方式下載
+            import urllib.request
+            url = "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/TraditionalChinese/NotoSansCJKtc-Regular.otf"
+            urllib.request.urlretrieve(url, font_path)
+        except Exception as e:
+            st.error(f"字體下載失敗: {e}")
+            return
+
+    # 再次確認檔案存在後才加入字體管理器
+    if os.path.exists(font_path):
+        import matplotlib.font_manager as fm
+        try:
+            fm.fontManager.addfont(font_path)
+            plt.rc('font', family='Noto Sans CJK TC')
+            plt.rcParams['axes.unicode_minus'] = False
+        except Exception as e:
+            st.warning(f"字體掛載警告: {e}")
 
 install_font()
 
