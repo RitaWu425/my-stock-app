@@ -49,8 +49,15 @@ st.sidebar.header("📊 診斷參數設定")
 執行診斷 = st.sidebar.button("開始執行診斷")
 
 if not 執行診斷:
-    st.title("🚀 台股籌碼智慧診斷系統")
-    st.info("👈 請在左側輸入設定，並按下「開始執行診斷」。")
+   st.title("🚀 台股籌碼智慧診斷系統")
+    st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
+    st.markdown(f"💡 **目前系統判定日期**：資料擷取至 `{結束日期}`")
+    st.markdown("""
+    本系統整合以下深度分析：
+    - **籌碼面**：三大法人動向、融資券變動、借券回補天數。
+    - **技術面**：5MA 趨勢、RSI 強弱指標。
+    - **AI 顧問**：基於數據的投資亮點與風險分析。
+    """)
 else:
     try:
         with st.spinner('正在深度解析籌碼數據...'):
@@ -194,12 +201,32 @@ else:
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                prompt = f"分析台股{股票代號}{股名}: 價{最新股價}, RSI{最新RSI:.1f}, 外資{區間外資:+,d}, 借券回補{連續回補}天。請給300字專業建議。"
-                response = model.generate_content(prompt)
-                st.info(response.text)
-            except:
-                st.warning("🕒 AI 引擎目前忙碌中，請參考上方深度拆解說明。")
+                model_names = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
+                ai_content = ""
+                
+                for m_name in model_names:
+                    try:
+                        model = genai.GenerativeModel(m_name)
+                        ai_prompt = f"""
+                        你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
+                        股票：{股票代號} {股名}
+                        技術面：價格 {最新股價}，5MA {最新5MA:.2f}，RSI {最新RSI:.1f}。
+                        籌碼面：外資{區間外資:+,d}，投信{區間投信:+,d}，借券餘額{最新借券餘額}張，連續回補{連續回補}天。
+                        請分析亮點與風險，並做進出場建議(買進、加碼、續抱、獲利了結)。
+                        """
+                        response = model.generate_content(ai_prompt)
+                        ai_content = response.text
+                        if ai_content: break
+                    except Exception: continue
+                
+                if ai_content:
+                    st.info(f"💡 **AI 診斷結果**：\n\n{ai_content}")
+                else:
+                    st.warning("🕒 AI 引擎目前忙碌中，請稍後再試。")
+            except Exception as e:
+                st.error(f"AI 啟動失敗：{e}")
+        else:
+            st.warning("⚠️ 找不到 GEMINI_API_KEY。")
 
     except Exception as e:
         st.error(f"❌ 診斷失敗：{e}")
