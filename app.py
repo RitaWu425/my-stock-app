@@ -220,8 +220,47 @@ if st.sidebar.button("開始執行診斷"):
         
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         st.pyplot(fig)
-
-        # --- 6. 完整智慧診斷輸出 (補足資訊) ---
+# --- 6. 新增：基本面財報趨勢圖 ---
+        if not 基本面資料.empty:
+            st.markdown("---")
+            st.subheader("📉 近四季財報營收趨勢")
+            
+            # 過濾營收資料並取最後 4 季
+            df_rev_plot = 基本面資料[基本面資料['type'] == 'Revenue'].copy()
+            
+            if len(df_rev_plot) >= 1:
+                # 僅取最後 4 筆，並將單位轉為「億」
+                df_rev_plot = df_rev_plot.tail(4)
+                df_rev_plot['value_billion'] = df_rev_plot['value'] / 1e8
+                
+                # 建立畫布
+                fig_rev, ax_rev = plt.subplots(figsize=(10, 4))
+                bars = ax_rev.bar(df_rev_plot['date'], df_rev_plot['value_billion'], 
+                                  color='skyblue', edgecolor='navy', alpha=0.8, width=0.5)
+                
+                # 在長條圖上方標註數值
+                for bar in bars:
+                    yval = bar.get_height()
+                    ax_rev.text(bar.get_x() + bar.get_width()/2, yval + 0.1, 
+                                f'{yval:.1f}億', ha='center', va='bottom', fontsize=10)
+                
+                ax_rev.set_ylabel('營收 (單位：億元)')
+                ax_rev.set_title(f'{股票代號} {股名} - 季度營收走勢', fontsize=14)
+                ax_rev.grid(axis='y', linestyle='--', alpha=0.6)
+                
+                # 顯示圖表
+                st.pyplot(fig_rev)
+                
+                # 簡單趨勢判斷
+                if len(df_rev_plot) >= 2:
+                    last_rev = df_rev_plot['value_billion'].iloc[-1]
+                    prev_rev = df_rev_plot['value_billion'].iloc[-2]
+                    growth = ((last_rev - prev_rev) / prev_rev) * 100
+                    status = "📈 成長" if growth > 0 else "📉 衰退"
+                    st.write(f"💡 **成長性分析**：最新季度營收較上一季 {status} `{abs(growth):.2f}%`。")
+            else:
+                st.write("查無足夠的營收季度資料供繪圖。")
+        # --- 7. 完整智慧診斷輸出 (補足資訊) ---
         st.markdown("---")
         st.success("🧠 **圖表智慧診斷總結**")
         
