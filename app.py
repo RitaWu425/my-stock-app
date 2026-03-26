@@ -31,14 +31,24 @@ def install_font():
             st.error(f"字體下載失敗: {e}")
     return font_path
 
-# 執行並設定字體
+# --- 1. 中文字體處理 (相容性強化版) ---
 font_file = install_font()
-if os.path.exists(font_file):
-    font_manager.font_manager.addfont(font_file)
-    plt.rcParams['font.family'] = font_manager.FontProperties(fname=font_file).get_name()
-plt.rcParams['axes.unicode_minus'] = False
 
-install_font()
+if os.path.exists(font_file):
+    try:
+        # 使用最穩定的 FontEntry 方式註冊字體
+        fe = font_manager.FontEntry(
+            fname=font_file, 
+            name='NotoSansCJKtc'
+        )
+        # 注意這裡：是 fontManager (小寫 m)，且直接插入到 ttflist
+        font_manager.fontManager.ttflist.insert(0, fe) 
+        plt.rcParams['font.family'] = fe.name
+    except Exception as e:
+        st.warning(f"字體設定稍微受阻，但不影響程式執行: {e}")
+
+# 設定負號顯示正常
+plt.rcParams['axes.unicode_minus'] = False
 
 # --- 2. 側邊欄：互動參數輸入 ---
 st.sidebar.header("📊 診斷參數設定")
