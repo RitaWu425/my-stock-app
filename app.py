@@ -380,7 +380,8 @@ st.subheader("🤖 AI 投資顧問「白話」分析")
 if "GEMINI_API_KEY" in st.secrets:
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest') 
+# 或者如果還是不行，改用：model = genai.GenerativeModel('gemini-pro')
         
         if st.button("點我生成 AI 深度報告"):
             with st.spinner("AI 正在研讀數據中..."):
