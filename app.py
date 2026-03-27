@@ -334,7 +334,7 @@ else:
                         st.write(f"⚠️ **均線壓制**：股價目前受制於 5MA ({最新5MA:.2f}) 之下。若無法帶量站回，需防範慣性下跌壓力，短線切勿盲目摸底。")
                     
                     rsi_text = "超賣區鈍化" if 最新RSI < 20 else "低檔轉折" if 最新RSI < 30 else "中性震盪" if 最新RSI < 70 else "高檔過熱"
-                    st.write(f"● **指標訊號**：RSI 目前為 `{最新RSI:.1f}`，處於 `{rsi_text}` 區間，建議參考借券動向觀察底部是否成形。")
+                    st.write(f"● **指標訊號**：RSI 目前為 {最新RSI:.1f}，處於 {rsi_text} 區間，建議參考借券動向觀察底部是否成形。")
 
                 with t_col2:
                     st.write("**【籌碼空方動向】**")
