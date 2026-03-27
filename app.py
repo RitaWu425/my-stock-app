@@ -577,3 +577,10 @@ else:
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
+            # --- 重要：這是對齊第 3 區最前面那個 try 的大 except ---
+    except Exception as e:
+        st.error(f"❌ 診斷過程發生錯誤：{e}")
+
+# --- 10. 初始狀態與按鈕修復 (必須在最左邊，不縮進) ---
+if not clicked and "股名" not in locals():
+    st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
