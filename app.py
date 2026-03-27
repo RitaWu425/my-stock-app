@@ -37,8 +37,8 @@ dl = init_all()
 # --- CSS 樣式修正 (字體大小對調與正負色) ---
 st.markdown("""
     <style>
-    .stMetric label { font-size: 16px !important; color: #BBBBBB !important; }
-    .stMetric div[data-testid="stMetricValue"] { font-size: 32px !important; font-weight: bold !important; }
+    .stMetric label { font-size: 20px !important; color: #BBBBBB !important; }
+    .stMetric div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold !important; }
     .data-label { font-size: 18px; font-weight: bold; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
