@@ -541,13 +541,31 @@ else:
 
 # --- 9. AI 投資顧問分析 (路徑修正版) ---
         if "GEMINI_API_KEY" in st.secrets:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                
-                # 修正：直接使用模型名稱，不要加 models/ 前綴
-                # 這是解決 404 的最直接方法
-                model = genai.GenerativeModel('gemini-1.5-flash')
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        
+        # 先列出所有可用模型
+        available_models = [m.name for m in genai.list_models()]
+        
+        # 優先使用 gemini-1.5-flash，如果不存在就用 gemini-1.5-pro
+        if "gemini-1.5-flash" in available_models:
+            model_name = "gemini-1.5-flash"
+        elif "gemini-1.5-pro" in available_models:
+            model_name = "gemini-1.5-pro"
+        else:
+            # 如果兩個都不存在，就用第一個可用模型
+            model_name = available_models[0] if available_models else None
+        
+        if model_name:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content("Hello Gemini!")
+            st.write(response.text)
+        else:
+            st.error("沒有找到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
+    except Exception as e:
+        st.error(f"Gemini API 呼叫失敗: {e}")
+
                 
                 with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
                     # 建立更精確的 Prompt
