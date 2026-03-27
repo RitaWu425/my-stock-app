@@ -332,17 +332,52 @@ else:
                     plt.xticks(rotation=0)
                     st.pyplot(fig_inst)
                     
-                    # 法人分析文字內容
-                    latest_day = df_inst.iloc[-1]
-                    st.write("📝 **今日法人重點評析：**")
-                    if latest_day.get('Foreign_Investor', 0) > 0 and latest_day.get('Investment_Trust', 0) > 0:
-                        st.success("✅ **[英雄所見略同]**：外資與投信今日同步買超，通常是強力的攻擊訊號。")
-                    elif latest_day.get('Foreign_Investor', 0) < 0 and latest_day.get('Investment_Trust', 0) > 0:
-                        st.warning("⚠️ **[土洋對作]**：投信力挺但外資倒貨，觀察 5MA 支撐。")
+                    # --- 法人行為深度分析 (強化版) ---
+                latest_day = df_inst.iloc[-1]
+                st.write("📝 **今日法人重點評析：**")
+                
+                # 取得外資與投信數值
+                f_buy = latest_day.get('Foreign_Investor', 0)
+                t_buy = latest_day.get('Investment_Trust', 0)
+                
+                # 運算：近五日累計與連續性 (判斷鎖碼)
+                sitc_5d_sum = df_inst['Investment_Trust'].sum()
+                foreign_5d_sum = df_inst['Foreign_Investor'].sum()
+                
+                # 建立分析欄位
+                inst_col1, inst_col2 = st.columns(2)
+                
+                with inst_col1:
+                    st.write("**【外資與主力動態】**")
+                    if f_buy > 0 and foreign_5d_sum > 1000:
+                        st.write(f"🚀 **外資波段加碼**：外資今日買超 `{f_buy:,.0f}` 張，且近五日累計買超 `{foreign_5d_sum:,.0f}` 張。屬於典型的波段佈局，對股價中長線走勢有利。")
+                    elif f_buy < 0 and foreign_5d_sum < -1000:
+                        st.write(f"🚨 **外資套利撤出**：外資近五日大舉調節 `{abs(foreign_5d_sum):,.0f}` 張。需留意是否因國際盤勢變動或避險需求而進行「提款」，短線承接需謹慎。")
+                    elif f_buy > 0 and 最新股價 < 最新5MA:
+                        st.write(f"📉 **外資低位接盤**：股價雖在均線下，但外資已開始逢低試單。這通常是「左側交易」訊號，觀察是否能靠外資買盤止跌。")
                     else:
-                        st.info("💡 法人動向分歧，籌碼尚在換手階段。")
-                else:
-                    st.warning("⚠️ 無法取得法人進出細節。")
+                        st.write("● 外資目前買賣力道互有勝負，尚無明顯的單邊波段趨勢。")
+
+                with inst_col2:
+                    st.write("**【投信鎖碼與作帳】**")
+                    # 判斷投信鎖碼邏輯：近五日買超顯著且佔比提升
+                    if sitc_5d_sum > 500:
+                        st.write(f"🔥 **投信強勢鎖碼**：投信近五日積極掃貨 `{sitc_5d_sum:,.0f}` 張。在台股中，投信連買通常代表「認養股」行情，具備強大的跟單效應，是作帳行情的前兆。")
+                    elif t_buy < 0 and sitc_5d_sum > 1000:
+                        st.write(f"⚠️ **高檔獲利了結**：雖然投信先前重倉，但今日出現調節。需防範「作帳變結帳」，若跌破關鍵支撐需警戒。")
+                    elif t_buy > 0:
+                        st.write(f"✅ **內資投信進場**：今日投信小幅佈局 `{t_buy:,.0f}` 張。若後續能出現連續性買盤，則有望形成新的支撐。")
+                    else:
+                        st.write("● 投信暫無明顯進出。目前籌碼多由外資或市場大戶主導。")
+
+                # 智慧綜合評估
+                st.markdown("---")
+                if f_buy > 0 and t_buy > 0:
+                    st.success(f"💡 **籌碼總結 [英雄所見略同]**：外資與投信同步站在買方。兩大勢力方向一致時，股價『漲多跌少』，為目前最理想的多頭籌碼結構。")
+                elif f_buy < 0 and t_buy > 0:
+                    st.warning(f"💡 **籌碼總結 [土洋對作]**：投信力挺但外資在倒貨。這種情況下股價通常會劇烈震盪，建議以『投信成本線』作為防守參考。")
+                elif f_buy < 0 and t_buy < 0:
+                    st.error(f"💡 **籌碼總結 [雙殺警訊]**：法人同步棄守。當內外資皆在出貨時，應避開殺低風險，嚴格執行止損。")
 
         # --- 分頁 3: 基本面 (營收與毛利) ---
         with tab3:
