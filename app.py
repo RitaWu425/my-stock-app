@@ -539,66 +539,54 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (路徑修正版) ---
+# --- 9. AI 投資顧問分析 (路徑與對齊修正版) ---
         if "GEMINI_API_KEY" in st.secrets:
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        
-        # 先列出所有可用模型
-        available_models = [m.name for m in genai.list_models()]
-        
-        # 優先使用 gemini-1.5-flash，如果不存在就用 gemini-1.5-pro
-        if "gemini-1.5-flash" in available_models:
-            model_name = "gemini-1.5-flash"
-        elif "gemini-1.5-pro" in available_models:
-            model_name = "gemini-1.5-pro"
-        else:
-            # 如果兩個都不存在，就用第一個可用模型
-            model_name = available_models[0] if available_models else None
-        
-        if model_name:
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content("Hello Gemini!")
-            st.write(response.text)
-        else:
-            st.error("沒有找到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
-    except Exception as e:
-        st.error(f"Gemini API 呼叫失敗: {e}")
-
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
-                    # 建立更精確的 Prompt
-                    ai_prompt = f"""
-                    你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
-                    股票：{股票代號} {股名}
-                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
-                    籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
-                    目前借券餘額：{最新借券餘額} 張。
-                    
-                    請直接告訴我：
-                    1. 這檔股票目前的亮點在哪？
-                    2. 最大的風險是什麼？
-                    3. 進出場建議 (買進、加碼、續抱、獲利了結)。
-                    """
-                    
-                    # 呼叫 API
-                    response = model.generate_content(ai_prompt)
-                    
-                    if response:
-                        st.markdown("---")
-                        # 使用 :green[] 讓標題顏色一致且字體正常
-                        st.info(f"💡 :green[**AI 診斷結果**]：\n\n{response.text}")
+                # 自動搜尋可用模型，避免手寫路徑導致 404
+                available_models = [m.name for m in genai.list_models()]
+                model_name = None
+                
+                # 優先順序：1.5-flash > 1.0-pro
+                if any("gemini-1.5-flash" in m for m in available_models):
+                    model_name = "gemini-1.5-flash"
+                elif any("gemini-pro" in m for m in available_models):
+                    model_name = "gemini-pro"
+                
+                if model_name:
+                    model = genai.GenerativeModel(model_name)
+                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
+                        ai_prompt = f"""
+                        你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
+                        股票：{股票代號} {股名}
+                        技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                        籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
+                        目前借券餘額：{最新借券餘額} 張。
+                        
+                        請直接告訴我：
+                        1. 這檔股票目前的亮點在哪？
+                        2. 最大的風險是什麼？
+                        3. 進出場建議 (買進、加碼、續抱、獲利了結)。
+                        """
+                        response = model.generate_content(ai_prompt)
+                        
+                        if response.text:
+                            st.markdown("---")
+                            st.info(f"💡 :green[**AI 診斷結果**]：\n\n{response.text}")
+                else:
+                    st.warning("⚠️ 找不到可用的 Gemini 模型。")
             
             except Exception as ai_err:
-                # 顯示具體錯誤，如果還是 404，請確認 API Key 是否有效
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
-            # --- 重要：這是對齊第 3 區最前面那個 try 的大 except ---
-    except Exception as e:
-        st.error(f"❌ 診斷過程發生錯誤：{e}")
 
-# --- 10. 初始狀態與按鈕修復 (必須在最左邊，不縮進) ---
+    # --- 關鍵：這是對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
+    except Exception as e:
+        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+
+# --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
 if "股名" not in locals():
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
