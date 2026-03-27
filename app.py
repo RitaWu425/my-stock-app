@@ -141,14 +141,16 @@ else:
             st.write(f"融資變動：`{今日融資變動:+,d}` 張")
             st.write(f"融券總餘額：`{融券總餘額:,.0f}` 張")
 
-        # --- 借券解析邏輯 (優化條列顯示) ---
+        # --- 借券解析邏輯 (修正變數與縮排) ---
         if not 借券資料.empty:
             sbl_最新 = 借券資料.iloc[-1]
             最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
             今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
-            今日借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
+            # 統一變數名稱為 借券賣出，避免下方判斷式報錯
+            借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000 
             還券比 = (今日還券 / 今日張數) * 100 if 今日張數 > 0 else 0
 
+            # 計算連續回補天數
             連續回補 = 0
             for i in range(len(借券資料)-1, -1, -1):
                 if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
@@ -160,17 +162,22 @@ else:
             st.markdown("#### 📊 今日借券關鍵數據")
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("最新借券餘額", f"{最新借券餘額:,.0f} 張")
-            c2.metric("今日借券賣出", f"{今日借券賣出:,.0f} 張", delta=f"{-今日借券賣出:,.0f}", delta_color="inverse")
+            # 借券賣出增加對股市是負面，所以 delta_color 用 inverse (紅增綠減)
+            c2.metric("今日借券賣出", f"{借券賣出:,.0f} 張", delta=f"{借券賣出:,.0f}", delta_color="inverse")
             c3.metric("今日還券", f"{今日還券:,.0f} 張", delta=f"{今日還券:,.0f}")
             c4.metric("還券比", f"{還券比:.2f}%")
 
-            # 2. 保留原本的文字解析摘要 (顏色標註更醒目)
+            # 2. 顯示文字解析摘要 (包含連續回補燈號)
             status_color = "🟢" if 連續回補 > 0 else "⚪"
             st.info(f"{status_color} **借券賣出摘要**：目前連續回補 `{連續回補}` 天。最新餘額 `{最新借券餘額:,.0f}` 張，整體還券力道為 `{還券比:.2f}%`。")
-if 今日還券 > 借券賣出:
-            st.success(f"💥 今日「借券賣出」：{借券賣出} 張 | 今日『還券』大於『賣出』，淨回補 {今日還券-借券賣出:,.0f} 張，空頭力量消退中。")
+
+            # 3. 淨回補動態判斷 (修正語法結構)
+            if 今日還券 > 借券賣出:
+                st.success(f"💥 今日「借券賣出」：{借券賣出:,.0f} 張 | 今日『還券』大於『賣出』，淨回補 {今日還券 - 借券賣出:,.0f} 張，空頭力量消退中。")
+            else:
+                st.error(f"💥 今日「借券賣出」：{借券賣出:,.0f} 張 | 賣出大於還券，法人空方力道仍存。")
         else:
-            st.error(f"💥 今日「借券賣出」：{借券賣出} 張 | 賣出大於還券，法人空方力道仍存。")
+            st.warning("⚠️ 暫無借券資料可供分析。")
         # --- 數據深度拆解說明 (全面升級版) ---
         st.subheader("🔍 數據深度拆解說明")
         
