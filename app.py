@@ -539,17 +539,18 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 ---
+# --- 9. AI 投資顧問分析 (路徑修正版) ---
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                # 使用目前最穩定且支援免費額度的模型名稱
+                # 修正：直接使用模型名稱，不要加 models/ 前綴
+                # 這是解決 404 的最直接方法
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
-                    # 這裡建立更精確的 Prompt
+                    # 建立更精確的 Prompt
                     ai_prompt = f"""
                     你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
                     股票：{股票代號} {股名}
@@ -563,20 +564,16 @@ else:
                     3. 進出場建議 (買進、加碼、續抱、獲利了結)。
                     """
                     
-                    # 呼叫 API 並取得回覆
+                    # 呼叫 API
                     response = model.generate_content(ai_prompt)
                     
-                    if response.text:
+                    if response:
                         st.markdown("---")
-                        st.info(f"💡 **AI 診斷結果**：\n\n{response.text}")
+                        # 使用 :green[] 讓標題顏色一致且字體正常
+                        st.info(f"💡 :green[**AI 診斷結果**]：\n\n{response.text}")
             
             except Exception as ai_err:
-                # 這是針對 AI 部分的錯誤抓取
+                # 顯示具體錯誤，如果還是 404，請確認 API Key 是否有效
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
-
-    # --- 這裡非常重要：這是最外層資料抓取 try 的收尾 ---
-    except Exception as e:
-        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
-
