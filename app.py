@@ -37,7 +37,7 @@ dl = init_all()
 # --- CSS 樣式修正 (字體大小對調與正負色) ---
 st.markdown("""
     <style>
-    .stMetric label { font-size: 14px !important; color: #BBBBBB !important; }
+    .stMetric label { font-size: 16px !important; color: #BBBBBB !important; }
     .stMetric div[data-testid="stMetricValue"] { font-size: 32px !important; font-weight: bold !important; }
     .data-label { font-size: 18px; font-weight: bold; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
@@ -270,13 +270,13 @@ else:
                         if not df_oi.empty:
                             最新利益 = df_oi['value'].iloc[-1]
                             本業狀態 = "✅ 本業獲利" if 最新利益 > 0 else "⚠️ 本業虧損"
-                            st.write(f"  └─ {本業狀態}：營業利益 [{最新利益/1e8:.2f}] 億元。")
+                            st.write(f"  └─ {本業狀態}：營業利益 :green[{最新利益/1e8:.2f}] 億元。")
                     else:
-                        st.write("● **[基本面]**: 財報格式不符，建議至公開觀測站確認。")
+                        st.write("● **[基本面]**： 財報格式不符，建議至公開觀測站確認。")
                 except Exception as e:
-                    st.write(f"● **[基本面]**: 解析財報時發生小誤差。")
+                    st.write(f"● **[基本面]**： 解析財報時發生小誤差。")
             else:
-                st.write("● **[基本面]**: 即使追蹤一年仍查無財報，請確認代號是否為 ETF 或特殊股。")
+                st.write("● **[基本面]**： 即使追蹤一年仍查無財報，請確認代號是否為 ETF 或特殊股。")
 
 
         # --- 5. 繪圖與分頁顯示 ---
