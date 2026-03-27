@@ -539,9 +539,9 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (穩定模型名單 + Debug + 自訂樣式) ---
+# --- 9. AI 投資顧問分析 (完整數據 + 強度穩定版) ---
         
-        # 建議將此 debug_mode 移至 sidebar 參數設定區，以防頁面重整
+        # 側邊欄除錯開關 (建議放在 sidebar 定義區)
         debug_mode = st.sidebar.checkbox("🔍 顯示 AI 除錯資訊", value=False)
 
         if "GEMINI_API_KEY" in st.secrets:
@@ -549,7 +549,7 @@ else:
                 import google.generativeai as genai
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                # 取得清單並顯示 Debug 資訊
+                # 取得可用模型清單
                 models = genai.list_models()
                 available_models = [m.name for m in models]
                 
@@ -558,10 +558,10 @@ else:
                     st.write("目前環境可用模型清單：", available_models)
                     st.write("--------------------")
 
-                # 【模型優先名單】：優先選用 Flash 系列以避開配額限制
+                # 【鎖定最穩定模型】Flash 系列是免費版配額的王者，適合處理大量數據
                 priority_models = [
-                    "models/gemini-1.5-flash",
-                    "models/gemini-2.0-flash", 
+                    "models/gemini-1.5-flash", 
+                    "models/gemini-2.0-flash",
                     "models/gemini-2.0-flash-lite",
                     "models/gemini-flash-latest"
                 ]
@@ -572,68 +572,73 @@ else:
                         model_name = p_model
                         break
                 
-                # 如果優先名單都沒有，則自動抓第一個
                 if not model_name:
-                    model_name = available_models[0] if available_models else None
+                    model_name = available_models[0] if available_models else "models/gemini-1.5-flash"
 
-                if not model_name:
-                    st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key。")
-                else:
-                    # 顯示目前使用的模型 (使用小字 caption)
-                    st.caption(f"🤖 系統目前連結穩定模型：{model_name}")
+                st.caption(f"🤖 系統目前連結穩定模型：{model_name}")
 
-                    # 使用 spinner 顯示分析中狀態
-                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據，請稍候..."):
-                        
-                        ai_prompt = f"""
-                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
-                        股票：{股票代號} {股名}
-                        技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
-                        籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
-                        目前借券餘額：{最新借券餘額} 張。
+                # 使用 spinner 顯示分析中狀態
+                with st.spinner("🤖 AI 顧問正在研讀所有數據，請稍候..."):
+                    
+                    # 【完整 Prompt 保留】不刪減任何關鍵數據
+                    ai_prompt = f"""
+                    你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
+                    股票：{股票代號} {股名}
+                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                    籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
+                    目前借券餘額：{最新借券餘額} 張。
 
-                        請直接告訴我：
-                        1. 這檔股票目前的亮點在哪？
-                        2. 最大的風險是什麼？
-                        3. 進出場建議 (買進、加碼、續抱、獲利了結)。
-                        """
+                    請直接告訴我：
+                    1. 這檔股票目前的亮點在哪？
+                    2. 最大的風險是什麼？
+                    3. 進出場建議 (買進、加碼、續抱、獲利了結)。
+                    """
 
-                        # 呼叫模型
-                        model = genai.GenerativeModel(model_name)
-                        response = model.generate_content(ai_prompt)
-                        
-                        # 安全取得回覆內容
-                        text = getattr(response, "text", None)
-                        if not text:
-                            text = getattr(response, "output_text", None) or getattr(response, "output", None)
-                        
-                        if text:
+                    # 執行 AI 呼叫
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(ai_prompt)
+                    
+                    # 安全取出回覆內容
+                    text = getattr(response, "text", None)
+                    if not text:
+                        text = getattr(response, "output_text", None) or getattr(response, "output", None)
+                    
+                    if text:
                             st.markdown("---")
                             st.subheader("💡 AI 診斷顧問意見")
                             
-                            # 自訂高亮樣式：字體加大(20px)、文字白色、深色質感背景
+                            # --- 修正版：使用 ID 隔離樣式，確保不影響全域 ---
                             st.markdown(f"""
-                            <div style="
-                                background-color: #262730; 
-                                color: #FFFFFF;           
-                                padding: 20px;            
-                                border-radius: 12px;      
-                                font-size: 18px;          
-                                line-height: 1.8;          
-                                border-left: 5px solid #009688;
-                                box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-                                ">
+                            <style>
+                                #ai-report-container {{
+                                    background-color: #262730; 
+                                    color: #FFFFFF;           
+                                    padding: 25px;            
+                                    border-radius: 12px;      
+                                    font-size: 20px;          
+                                    line-height: 1.8;          
+                                    border-left: 5px solid #009688;
+                                    box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+                                    margin-bottom: 20px;
+                                }}
+                            </style>
+                            <div id="ai-report-container">
                                 {text.replace('\n', '<br>')}
                             </div>
                             """, unsafe_allow_html=True)
-                        else:
-                            st.warning("AI 有回應但無法解析內容，請稍後重試。")
+                    else:
+                        st.warning("AI 已回應但內容為空，請檢查數據是否異常。")
 
             except Exception as ai_err:
-                # 捕捉 429 額度錯誤並給予友善提示
-                if "429" in str(ai_err):
-                    st.error("🕒 **目前 AI 顧問過於忙碌 (額度已滿)**")
-                    st.info("由於免費版 API 限制，請等待約 1 分鐘後再重新執行診斷。")
+                err_str = str(ai_err)
+                if "429" in err_str:
+                    st.error("🕒 **AI 服務配額已達上限 (429 Error)**")
+                    st.markdown("""
+                    ### 💡 解決方案：
+                    1. **等待 60 秒**：這通常是「每分鐘請求數」限制，稍等一下即可恢復。
+                    2. **更換 API Key**：如果一直出現，建議到 [Google AI Studio](https://aistudio.google.com/) 申請一個全新的 Key。
+                    3. **檢查帳單狀態**：雖然是免費版，但有時 Google 會要求驗證手機號碼以解鎖更多額度。
+                    """)
                 else:
                     st.warning(f"🕒 AI 服務啟動失敗。詳情：{ai_err}")
         else:
