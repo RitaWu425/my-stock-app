@@ -95,58 +95,76 @@ else:
         最新借券餘額 = 0
         連續回補 = 0
         還券比 = 0  
-        # --- 3. 核心數據計算 (強化版) ---
-        # A. 基礎變數初始化 (防止後方報錯)
+        # --- 3. 核心數據計算 (全面修復與命名統一版) ---
+        
+        # [A] 初始化所有變數 (防止後方報錯)
         外資 = 0; 投信 = 0; 自營 = 0; 權證 = 0; 籌碼集中度 = 0
         今日融資變動 = 0; 融券總餘額 = 0
-        
-        # B. 股價與技術指標計算
-        股價資料['date'] = pd.to_datetime(股價資料['date'])
-        股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
-        # 處理交易量單位 (張)
-        vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
-        股價資料['Trading_Volume_Lots'] = 股價資料[vol_col] // 1000
-        股價資料['5MA_Vol'] = 股價資料['Trading_Volume_Lots'].rolling(5).mean()
+        最新借券餘額 = 0; 今日還券 = 0; 借券賣出 = 0; 連續回補 = 0; 還券比 = 0
+        最新股價 = 0; 最新5MA = 0; 最新RSI = 0; 今日張數 = 0; 今日5MA量 = 1
 
-        # RSI 計算
-        delta = 股價資料['close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
-        # 避免除以 0
-        rs = gain / loss.replace(0, 0.001)
-        股價資料['RSI'] = 100 - (100 / (1 + rs))
+        # [B] 股價與技術指標
+        if not 股價資料.empty:
+            股價資料['date'] = pd.to_datetime(股價資料['date'])
+            股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
+            
+            # 自動偵測成交量欄位名稱
+            vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
+            股價資料['Trading_Volume_Lots'] = 股價資料[vol_col] // 1000
+            股價資料['5MA_Vol'] = 股價資料['Trading_Volume_Lots'].rolling(5).mean()
 
-        # 取得最新與昨日數據
-        最新 = 股價資料.iloc[-1]
-        昨日 = 股價資料.iloc[-2]
-        最新股價 = 最新['close']
-        最新5MA = 最新['5MA']
-        最新RSI = 最新['RSI']
-        今日張數 = 最新['Trading_Volume_Lots']
-        今日5MA量 = 最新['5MA_Vol']
+            # RSI 計算 (6日)
+            delta = 股價資料['close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
+            rs = gain / loss.replace(0, 0.001)
+            股價資料['RSI'] = 100 - (100 / (1 + rs))
 
-        # C. 法人數據計算
+            # 提取關鍵數值
+            最新 = 股價資料.iloc[-1]
+            昨日 = 股價資料.iloc[-2]
+            最新股價 = 最新['close']
+            最新5MA = 最新['5MA']
+            最新RSI = 最新['RSI']
+            今日張數 = 最新['Trading_Volume_Lots']
+            今日5MA量 = 最新['5MA_Vol']
+            # 定義區間變數以相容舊代碼
+            區間外資 = 0; 區間投信 = 0 # 預設值
+
+        # [C] 法人籌碼計算
         if not 法人資料.empty:
-            def get_net_buy(df, name):
+            def get_net(df, name):
                 target = df[df['name'] == name]
-                if target.empty: return 0
                 return (target['buy'].sum() - target['sell'].sum()) // 1000
 
-            外資 = get_net_buy(法人資料, 'Foreign_Investor')
-            投信 = get_net_buy(法人資料, 'Investment_Trust')
-            自營 = get_net_buy(法人資料, 'Dealer_self')
-            權證 = get_net_buy(法人資料, 'Dealer_Hedging')
+            外資 = get_net(法人資料, 'Foreign_Investor')
+            投信 = get_net(法人資料, 'Investment_Trust')
+            自營 = get_net(法人資料, 'Dealer_self')
+            權證 = get_net(法人資料, 'Dealer_Hedging')
+            
+            # 同步給「區間」開頭的變數，防止舊 UI 報錯
+            區間外資, 區間投信, 區間自營, 區間權證 = 外資, 投信, 自營, 權證
             
             法人總計 = 外資 + 投信 + 自營 + 權證
-            總成交張數 = 股價資料['Trading_Volume_Lots'].sum()
-            if 總成交張數 > 0:
-                籌碼集中度 = (法人總計 / 總成交張數) * 100
+            總量 = 股價資料['Trading_Volume_Lots'].sum()
+            籌碼集中度 = (法人總計 / 總量 * 100) if 總量 > 0 else 0
 
-        # D. 融資券數據計算 (加入長度檢查)
+        # [D] 借券與信用交易
+        if not 借券資料.empty:
+            sbl_最新 = 借券資料.iloc[-1]
+            最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
+            今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
+            借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
+            還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
+
+            # 計算連續回補
+            for i in range(len(借券資料)-1, -1, -1):
+                if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
+                    連續回補 += 1
+                else: break
+
         if len(融資券資料) >= 2:
             今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
-            融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
-        elif not 融資券資料.empty:
             融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 終極診斷報告")
