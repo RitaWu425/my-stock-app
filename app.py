@@ -540,74 +540,72 @@ else:
             st.error(f"建議模組執行失敗：{e}")
 
 # --- 9. AI 投資顧問分析 (修正版) ---
-if "GEMINI_API_KEY" in st.secrets:
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        
-        # 1) 列出可用模型並顯示支援的方法，方便除錯
-        models = genai.list_models()
-        available_models = [m.name for m in models]
-        st.write("可用模型：", available_models)
-        for m in models:
-            # 有些 SDK 物件屬性名稱可能不同，這裡用 getattr 安全取值
-            methods = getattr(m, "supported_generation_methods", None)
-            st.write(m.name, "支援的方法：", methods)
-
-        # 2) 選模型（優先順序）
-        model_name = None
-        if "gemini-1.5-flash" in available_models:
-            model_name = "gemini-1.5-flash"
-        elif "gemini-1.5-pro" in available_models:
-            model_name = "gemini-1.5-pro"
-        else:
-            model_name = available_models[0] if available_models else None
-
-        # 3) 若沒模型就提示
-        if not model_name:
-            st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
-        else:
-            st.write(f"使用模型：{model_name}")
-
-            # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
-            ai_prompt = f"""
-            你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
-            股票：{股票代號} {股名}
-            技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
-            籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
-            目前借券餘額：{最新借券餘額} 張。
-
-            請直接告訴我：
-            1. 這檔股票目前的亮點在哪？
-            2. 最大的風險是什麼？
-            3. 進出場建議 (買進、加碼、續抱、獲利了結)。
-            """
-
-            # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
+        if "GEMINI_API_KEY" in st.secrets:
             try:
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content(ai_prompt)
-                # 取出回傳文字（不同 SDK 版本回傳結構可能不同）
-                text = getattr(response, "text", None)
-                if not text:
-                    # 嘗試其他常見欄位
-                    text = getattr(response, "output_text", None) or getattr(response, "output", None)
-                if text:
-                    st.markdown("---")
-                    st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                import google.generativeai as genai
+                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                
+                # 1) 列出可用模型並顯示支援的方法，方便除錯
+                models = genai.list_models()
+                available_models = [m.name for m in models]
+                st.write("可用模型：", available_models)
+                for m in models:
+                    # 有些 SDK 物件屬性名稱可能不同，這裡用 getattr 安全取值
+                    methods = getattr(m, "supported_generation_methods", None)
+                    st.write(m.name, "支援的方法：", methods)
+
+                # 2) 選模型（優先順序）
+                model_name = None
+                if "gemini-1.5-flash" in available_models:
+                    model_name = "gemini-1.5-flash"
+                elif "gemini-1.5-pro" in available_models:
+                    model_name = "gemini-1.5-pro"
                 else:
-                    st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
-            except AttributeError as ae:
-                st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
-            except Exception as e:
-                st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
+                    model_name = available_models[0] if available_models else None
 
-    except Exception as ai_err:
-        st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
-else:
-    st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
+                # 3) 若沒模型就提示
+                if not model_name:
+                    st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
+                else:
+                    st.write(f"使用模型：{model_name}")
 
-# edge_all_open_tabs 放在外層（示範），注意 Python 的布林值要用 True/False
+                    # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
+                    ai_prompt = f"""
+                    你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
+                    股票：{股票代號} {股名}
+                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                    籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
+                    目前借券餘額：{最新借券餘額} 張。
+
+                    請直接告訴我：
+                    1. 這檔股票目前的亮點在哪？
+                    2. 最大的風險是什麼？
+                    3. 進出場建議 (買進、加碼、續抱、獲利了結)。
+                    """
+
+                    # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        response = model.generate_content(ai_prompt)
+                        # 取出回傳文字（不同 SDK 版本回傳結構可能不同）
+                        text = getattr(response, "text", None)
+                        if not text:
+                            # 嘗試其他常見欄位
+                            text = getattr(response, "output_text", None) or getattr(response, "output", None)
+                        if text:
+                            st.markdown("---")
+                            st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                        else:
+                            st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
+                    except AttributeError as ae:
+                        st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
+                    except Exception as e:
+                        st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
+
+            except Exception as ai_err:
+                st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
+        else:
+            st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
     # --- 關鍵：這是對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
     except Exception as e:
