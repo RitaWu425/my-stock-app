@@ -539,48 +539,37 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (完整數據 + 強度穩定版) ---
-        
-        # 側邊欄除錯開關 (建議放在 sidebar 定義區)
-        debug_mode = st.sidebar.checkbox("🔍 顯示 AI 除錯資訊", value=False)
-
+# --- 9. AI 投資顧問分析 (修正版) ---
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                # 取得可用模型清單
+                # 1) 列出可用模型並顯示支援的方法，方便除錯
                 models = genai.list_models()
                 available_models = [m.name for m in models]
-                
-                if debug_mode:
-                    st.write("--- 🔍 Debug 資訊 ---")
-                    st.write("目前環境可用模型清單：", available_models)
-                    st.write("--------------------")
+                st.write("可用模型：", available_models)
+                for m in models:
+                    # 有些 SDK 物件屬性名稱可能不同，這裡用 getattr 安全取值
+                    methods = getattr(m, "supported_generation_methods", None)
+                    st.write(m.name, "支援的方法：", methods)
 
-                # 【鎖定最穩定模型】Flash 系列是免費版配額的王者，適合處理大量數據
-                priority_models = [
-                    "models/gemini-1.5-flash", 
-                    "models/gemini-2.0-flash",
-                    "models/gemini-2.0-flash-lite",
-                    "models/gemini-flash-latest"
-                ]
-                
+                # 2) 選模型（優先順序）
                 model_name = None
-                for p_model in priority_models:
-                    if p_model in available_models:
-                        model_name = p_model
-                        break
-                
+                if "gemini-1.5-flash" in available_models:
+                    model_name = "gemini-1.5-flash"
+                elif "gemini-1.5-pro" in available_models:
+                    model_name = "gemini-1.5-pro"
+                else:
+                    model_name = available_models[0] if available_models else None
+
+                # 3) 若沒模型就提示
                 if not model_name:
-                    model_name = available_models[0] if available_models else "models/gemini-1.5-flash"
+                    st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
+                else:
+                    st.write(f"使用模型：{model_name}")
 
-                st.caption(f"🤖 系統目前連結穩定模型：{model_name}")
-
-                # 使用 spinner 顯示分析中狀態
-                with st.spinner("🤖 AI 顧問正在研讀所有數據，請稍候..."):
-                    
-                    # 【完整 Prompt 保留】不刪減任何關鍵數據
+                    # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
                     ai_prompt = f"""
                     你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
                     股票：{股票代號} {股名}
@@ -594,53 +583,27 @@ else:
                     3. 進出場建議 (買進、加碼、續抱、獲利了結)。
                     """
 
-                    # 執行 AI 呼叫
-                    model = genai.GenerativeModel(model_name)
-                    response = model.generate_content(ai_prompt)
-                    
-                    # 安全取出回覆內容
-                    text = getattr(response, "text", None)
-                    if not text:
-                        text = getattr(response, "output_text", None) or getattr(response, "output", None)
-                    
-                    if text:
+                    # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        response = model.generate_content(ai_prompt)
+                        # 取出回傳文字（不同 SDK 版本回傳結構可能不同）
+                        text = getattr(response, "text", None)
+                        if not text:
+                            # 嘗試其他常見欄位
+                            text = getattr(response, "output_text", None) or getattr(response, "output", None)
+                        if text:
                             st.markdown("---")
-                            st.subheader("💡 AI 診斷顧問意見")
-                            
-                            # --- 修正版：使用 ID 隔離樣式，確保不影響全域 ---
-                            st.markdown(f"""
-                            <style>
-                                #ai-report-container {{
-                                    background-color: #262730; 
-                                    color: #FFFFFF;           
-                                    padding: 18px;            
-                                    border-radius: 12px;      
-                                    font-size: 16px;          
-                                    line-height: 1.8;          
-                                    border-left: 5px solid #009688;
-                                    box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-                                    margin-bottom: 20px;
-                                }}
-                            </style>
-                            <div id="ai-report-container">
-                                {text.replace('\n', '<br>')}
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.warning("AI 已回應但內容為空，請檢查數據是否異常。")
+                            st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                        else:
+                            st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
+                    except AttributeError as ae:
+                        st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
+                    except Exception as e:
+                        st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
 
             except Exception as ai_err:
-                err_str = str(ai_err)
-                if "429" in err_str:
-                    st.error("🕒 **AI 服務配額已達上限 (429 Error)**")
-                    st.markdown("""
-                    ### 💡 解決方案：
-                    1. **等待 60 秒**：這通常是「每分鐘請求數」限制，稍等一下即可恢復。
-                    2. **更換 API Key**：如果一直出現，建議到 [Google AI Studio](https://aistudio.google.com/) 申請一個全新的 Key。
-                    3. **檢查帳單狀態**：雖然是免費版，但有時 Google 會要求驗證手機號碼以解鎖更多額度。
-                    """)
-                else:
-                    st.warning(f"🕒 AI 服務啟動失敗。詳情：{ai_err}")
+                st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
