@@ -560,10 +560,10 @@ else:
 
                 # 【模型優先名單】：優先選用 Flash 系列以避開配額限制
                 priority_models = [
-                    "models/gemini-2.0-flash-lite",
+                    "models/gemini-1.5-flash",
                     "models/gemini-2.0-flash", 
-                    "models/gemini-flash-latest",
-                    "models/gemini-1.5-flash"
+                    "models/gemini-2.0-flash-lite",
+                    "models/gemini-flash-latest"
                 ]
                 
                 model_name = None
