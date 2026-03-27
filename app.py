@@ -538,8 +538,6 @@ else:
 
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
-        
-　　　　# --- (前面是你的圖表程式碼，例如 st.pyplot(fig_inst) ) ---
 
         # --- 9. AI 投資顧問分析 ---
         if "GEMINI_API_KEY" in st.secrets:
