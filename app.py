@@ -65,7 +65,7 @@ st.sidebar.header("📊 診斷參數設定")
 if not 執行診斷:
     st.title("🚀 台股籌碼智慧診斷系統")
     st.info("👈 請在左側輸入設定，並按下「開始執行診斷」。")
-    st.markdown(f"💡 **目前系統判定日期**：資料擷取至 `{結束日期}`")
+    st.markdown(f"💡 **目前系統判定日期**：資料擷取至 :green[{結束日期}]")
     st.markdown("""
     本系統整合以下深度分析：
     - **籌碼面**：三大法人動向、融資券變動、借券回補天數。
@@ -181,12 +181,12 @@ else:
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("👥 法人與權證動向")
-            st.write(f"外資：`{區間外資:+,d}` | 投信：`{區間投信:+,d}`")
-            st.write(f"自營商：`{區間自營:+,d}` | 權證避險：`{區間權證:+,d}`")
+            st.write(f"外資：:green[{區間外資:+,d}] | 投信：:green[{區間投信:+,d}]")
+            st.write(f"自營商：:green[{區間自營:+,d}] | 權證避險：:green[{區間權證:+,d}]")
         with c2:
             st.subheader("📉 信用與借券數據")
-            st.write(f"融資變動：`{今日融資變動:+,d}` 張")
-            st.write(f"融券總餘額：`{融券總餘額:,.0f}` 張")
+            st.write(f"融資變動：:green[{今日融資變動:+,d}` 張")
+            st.write(f"融券總餘額：:green[{融券總餘額:,.0f}` 張")
 
         # --- 借券解析邏輯 (修正變數與縮排) ---
         if not 借券資料.empty:
@@ -507,7 +507,7 @@ else:
             st.write(f"● **[買盤力道]**: {'🔥 買盤積極：帶量且高於均量。' if 量能增溫 else '🧊 追價乏力：量能萎縮中。'}")
             
             rsi_status = "🔥 超買過熱" if 最新RSI > 70 else "❄️ 超賣低迷" if 最新RSI < 30 else "⚖️ 中性區間"
-            st.write(f"● **[指標訊號]**: RSI(`{最新RSI:.1f}`) 處於 {rsi_status}。")
+            st.write(f"● **[指標訊號]**: RSI(:green[{最新RSI:.1f}]) 處於 {rsi_status}。")
             # --- 最終操作建議 (排除非法字元與對齊修復) ---
         try:
             st.markdown("---")
