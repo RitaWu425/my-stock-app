@@ -508,8 +508,8 @@ else:
             
             rsi_status = "🔥 超買過熱" if 最新RSI > 70 else "❄️ 超賣低迷" if 最新RSI < 30 else "⚖️ 中性區間"
             st.write(f"● **[指標訊號]**: RSI(`{最新RSI:.1f}`) 處於 {rsi_status}。")
-　　　　　
-# --- 最終操作建議 (帶有語法保護機制) ---
+　　
+　　　　# --- 最終操作建議 (帶有語法保護機制) ---
         try:
             st.markdown("---")
             
@@ -542,9 +542,6 @@ else:
         except Exception as e:
             # 如果上方判斷出錯，會顯示這行，而不會讓整個 App 崩潰
             st.error(f"⚠️ 診斷建議模組執行失敗：{e}")
-
-
-
 
         
 　　　　# --- (前面是你的圖表程式碼，例如 st.pyplot(fig_inst) ) ---
