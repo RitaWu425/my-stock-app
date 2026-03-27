@@ -550,10 +550,12 @@ else:
                 model_name = None
                 
                 # 優先順序：1.5-flash > 1.0-pro
-                if any("gemini-1.5-flash" in m for m in available_models):
+                if "gemini-1.5-flash" in available_models:
                     model_name = "gemini-1.5-flash"
-                elif any("gemini-pro" in m for m in available_models):
-                    model_name = "gemini-pro"
+                elif "gemini-1.5-pro" in available_models:
+                    model_name = "gemini-1.5-pro"
+                else:
+                model_name = available_models[0] if available_models else None
                 
                 if model_name:
                     model = genai.GenerativeModel(model_name)
