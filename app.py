@@ -276,8 +276,6 @@ else:
                 ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
                 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
                 st.pyplot(fig)
-            else:
-                st.warning("⚠️ 暫無借券資料可繪圖。")
                 # --- 戰情深度拆解文字 (新增於圖表下方) ---
                 st.markdown("---")
                 st.markdown("### 📝 技術與借券戰情拆解")
@@ -313,7 +311,9 @@ else:
                     st.success(f"💡 **診斷結論**：股價站回短期均線且借券開始回補，籌碼面與技術面出現共振轉強，短線勝率提高。")
                 elif 最新股價 < 最新5MA and 借券賣出 > 今日還券:
                     st.error(f"💡 **診斷結論**：技術面受壓且空方持續借券賣出，目前屬於『價弱籌碼散』，建議靜待籌碼洗清。")
-
+            else:
+                st.warning("⚠️ 暫無借券資料可繪圖。")
+                
         # --- 分頁 2: 三大法人近五日動向 ---
         with tab2:
             if not 法人資料.empty:
