@@ -66,6 +66,12 @@ if not 執行診斷:
     st.title("🚀 台股籌碼智慧診斷系統")
     st.info("👈 請在左側輸入設定，並按下「開始執行診斷」。")
     st.markdown(f"💡 **目前系統判定日期**：資料擷取至 `{結束日期}`")
+    st.markdown("""
+    本系統整合以下深度分析：
+    - **籌碼面**：三大法人動向、融資券變動、借券回補天數。
+    - **技術面**：5MA 趨勢、RSI 強弱指標。
+    - **AI 顧問**：基於數據的投資亮點與風險分析。
+    """)
 else:
     try:
         with st.spinner('正在分析數據中...'):
@@ -232,141 +238,115 @@ else:
                 st.write("● **[基本面]**: 即使追蹤一年仍查無財報，請確認代號是否為 ETF 或特殊股。")
 
 
-        # 繪圖區
-        # --- 5. 繪圖 (修復日期格式報錯) ---
-        st.subheader("📊 籌碼與技術戰情圖")
-        
-        # 準備繪圖資料，強制轉換日期格式以防報錯
-        plot_price = 股價資料.copy()
-        plot_sbl = 借券資料.copy()
-        plot_sbl['date'] = pd.to_datetime(plot_sbl['date'])
-        
-        plot_sbl['Net_回補'] = (plot_sbl['SBLShortSalesReturns'] - plot_sbl['SBLShortSalesShortSales']) // 1000
-        plot_sbl['Balance'] = plot_sbl['SBLShortSalesPreviousDayBalance'] // 1000
-
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
-        fig.suptitle(f'{股票代號} {股名} - 戰情診斷', fontsize=20, fontweight='bold')
-
-        # 上圖：股價與均線
-        ax1.plot(plot_price['date'], plot_price['close'], label='收盤價', color='blue', linewidth=2)
-        ax1.plot(plot_price['date'], plot_price['5MA'], label='5MA', color='orange', linestyle='--')
-        ax1.set_ylabel('價格 (元)')
-        ax1.legend(loc='upper left')
-        ax1.grid(True, alpha=0.3)
-
-        # 下圖：借券淨變動 (長條圖) 與 借券餘額 (折線圖)
-        ax2.bar(plot_sbl['date'], plot_sbl['Net_回補'], label='淨回補量(張)', color='green', alpha=0.5)
-        ax2.set_ylabel('當日淨回補張數', color='green')
-        ax2.axhline(0, color='black', linewidth=1)
-        
-        ax2_r = ax2.twinx()
-        ax2_r.plot(plot_sbl['date'], plot_sbl['Balance'], label='借券餘額', color='red', linewidth=2)
-        ax2_r.set_ylabel('總借券餘額 (張)', color='red')
-        
-        # [關鍵修正]：強制格式化 X 軸日期，避免 tz 報錯
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
-        
-        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-        st.pyplot(fig)
-# --- ６. 基本面：營收與毛利雙軸圖 (進階版) ---
+        # --- 5. 繪圖與分頁顯示 ---
         st.markdown("---")
-        st.subheader("📉 基本面：營收與毛利率趨勢")
+        st.subheader("📈 深度戰情圖表分析")
 
-        fund_start_date = (pd.Timestamp.now() - pd.Timedelta(days=500)).strftime('%Y-%m-%d')
-        
-        try:
-            fund_data = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=fund_start_date)
+        # 建立三個分頁
+        tab1, tab2, tab3 = st.tabs(["🛡️ 技術與借券診斷", "🏦 三大法人動向", "📉 基本面獲利分析"])
 
-            if not fund_data.empty:
-                # 準備營收資料
-                df_rev = fund_data[fund_data['type'] == 'Revenue'].tail(4).copy()
-                # 準備毛利率資料 (營業毛利 / 營業收入 * 100)
-                df_gp = fund_data[fund_data['type'] == 'GrossProfit'].tail(4).copy()
+        # --- 分頁 1: 技術與借券診斷 ---
+        with tab1:
+            plot_price = 股價資料.copy()
+            plot_sbl = 借券資料.copy()
+            if not plot_sbl.empty:
+                plot_sbl['date'] = pd.to_datetime(plot_sbl['date'])
+                plot_sbl['Net_回補'] = (plot_sbl['SBLShortSalesReturns'] - plot_sbl['SBLShortSalesShortSales']) // 1000
+                plot_sbl['Balance'] = plot_sbl['SBLShortSalesPreviousDayBalance'] // 1000
+
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+                fig.suptitle(f'{股票代號} {股名} - 戰情診斷', fontsize=20, fontweight='bold')
+
+                # 上圖：股價與均線
+                ax1.plot(plot_price['date'], plot_price['close'], label='收盤價', color='blue', linewidth=2)
+                ax1.plot(plot_price['date'], plot_price['5MA'], label='5MA', color='orange', linestyle='--')
+                ax1.set_ylabel('價格 (元)')
+                ax1.legend(loc='upper left')
+                ax1.grid(True, alpha=0.3)
+
+                # 下圖：借券淨變動 (長條圖) 與 借券餘額 (折線圖)
+                ax2.bar(plot_sbl['date'], plot_sbl['Net_回補'], label='淨回補量(張)', color='green', alpha=0.5)
+                ax2.set_ylabel('當日淨回補張數', color='green')
+                ax2.axhline(0, color='black', linewidth=1)
                 
-                if not df_rev.empty and not df_gp.empty:
-                    # 合併資料確保日期對齊
-                    df_merge = pd.merge(df_rev[['date', 'value']], df_gp[['date', 'value']], on='date', suffixes=('_rev', '_gp'))
-                    df_merge['rev_billion'] = df_merge['value_rev'] / 1e8
-                    df_merge['gp_margin'] = (df_merge['value_gp'] / df_merge['value_rev']) * 100
-
-                    # 開始繪圖
-                    fig_f, ax1 = plt.subplots(figsize=(10, 5))
-                    
-                    # 1. 繪製營收長條圖 (左軸)
-                    bars = ax1.bar(df_merge['date'], df_merge['rev_billion'], color='#BDD7EE', label='季度營收(億)', width=0.4)
-                    ax1.set_ylabel('營收 (億元)', color='#2F5597', fontweight='bold')
-                    ax1.tick_params(axis='y', labelcolor='#2F5597')
-                    
-                    # 2. 建立右軸繪製毛利率折線
-                    ax2 = ax1.twinx()
-                    ax2.plot(df_merge['date'], df_merge['gp_margin'], color='#ED7D31', marker='o', linewidth=3, label='毛利率(%)')
-                    ax2.set_ylabel('毛利率 (%)', color='#ED7D31', fontweight='bold')
-                    ax2.tick_params(axis='y', labelcolor='#ED7D31')
-                    ax2.set_ylim(df_merge['gp_margin'].min() - 5, df_merge['gp_margin'].max() + 5) # 自動調整間距
-
-                    # 標註毛利率數值
-                    for i, txt in enumerate(df_merge['gp_margin']):
-                        ax2.annotate(f'{txt:.1f}%', (df_merge['date'].iloc[i], df_merge['gp_margin'].iloc[i]), 
-                                     textcoords="offset points", xytext=(0,10), ha='center', color='#C65911', fontweight='bold')
-
-                    plt.title(f"{股票代號} {股名} - 獲利能力分析", fontsize=14)
-                    st.pyplot(fig_f)
-                    
-                    # 💡 自動分析文字
-                    latest_gp = df_merge['gp_margin'].iloc[-1]
-                    prev_gp = df_merge['gp_margin'].iloc[-2]
-                    gp_trend = "📈 提升" if latest_gp > prev_gp else "📉 下滑"
-                    st.info(f"💡 **獲利評測**：最新毛利率為 `{latest_gp:.2f}%`，較上季 {gp_trend}。")
-                else:
-                    st.warning("⚠️ 財報科目不足，無法計算毛利率。")
+                ax2_r = ax2.twinx()
+                ax2_r.plot(plot_sbl['date'], plot_sbl['Balance'], label='借券餘額', color='red', linewidth=2)
+                ax2_r.set_ylabel('總借券餘額 (張)', color='red')
+                
+                ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+                fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+                st.pyplot(fig)
             else:
-                st.warning("⚠️ 查無財報資料。")
+                st.warning("⚠️ 暫無借券資料可繪圖。")
 
-        except Exception as e:
-            st.write("ℹ️ 基本面數據加載中或暫無資料。")
-
-        # --- 7. 新增：三大法人近五日買賣超圖 ---
-        if not 法人資料.empty:
-            st.markdown("---")
-            st.subheader("🏦 三大法人近五日動向")
-            
-            # 整理資料：僅取外資、投信、自營商，並取最近 5 個交易日
-            df_inst = 法人資料.groupby(['date', 'name'])['buy'].sum() - 法人資料.groupby(['date', 'name'])['sell'].sum()
-            df_inst = df_inst.unstack().tail(5) / 1000 # 轉為張數
-            
-            if not df_inst.empty:
-                # 建立畫布
-                fig_inst, ax_inst = plt.subplots(figsize=(10, 5))
-                df_inst.plot(kind='bar', ax=ax_inst, width=0.8, color=['#FF9999', '#66B2FF', '#99FF99'])
+        # --- 分頁 2: 三大法人近五日動向 ---
+        with tab2:
+            if not 法人資料.empty:
+                # 整理資料：僅取外資、投信、自營商，並取最近 5 個交易日
+                df_inst = 法人資料.groupby(['date', 'name'])['buy'].sum() - 法人資料.groupby(['date', 'name'])['sell'].sum()
+                df_inst = df_inst.unstack().tail(5) / 1000 # 轉為張數 (取最後5天)
                 
-                ax_inst.set_ylabel('買賣超張數 (張)')
-                ax_inst.set_title(f'{股票代號} 近五日法人進出', fontsize=14)
-                ax_inst.axhline(0, color='black', linewidth=1, alpha=0.5)
-                ax_inst.grid(axis='y', linestyle='--', alpha=0.4)
-                plt.xticks(rotation=0)
-                
-                st.pyplot(fig_inst)
-                
-                # --- 法人行為深度分析 ---
-                latest_day = df_inst.iloc[-1]
-                st.write("📝 **法人籌碼分析：**")
-                
-                # 判斷外資與投信
-                if latest_day['Foreign_Investor'] > 0 and latest_day['Investment_Trust'] > 0:
-                    st.write("✅ **[英雄所見略同]**：外資與投信今日同步買超，通常是強力的止跌或攻擊訊號。")
-                elif latest_day['Foreign_Investor'] < 0 and latest_day['Investment_Trust'] > 0:
-                    st.write("⚠️ **[土洋對作]**：投信力挺但外資在倒貨，需觀察 5MA 支撐是否能守住。")
-                elif latest_day['Foreign_Investor'] > 0 and latest_day['Investment_Trust'] < 0:
-                    st.write("⚠️ **[外熱內冷]**：外資回頭補貨，但內資投信先行獲利了結，股價易陷入震盪。")
-                else:
-                    st.write("❌ **[法人棄守]**：主要法人同步站回賣方，短線建議保守看待，避開殺低風險。")
+                if not df_inst.empty:
+                    fig_inst, ax_inst = plt.subplots(figsize=(10, 5))
+                    df_inst.plot(kind='bar', ax=ax_inst, width=0.8, color=['#FF9999', '#66B2FF', '#99FF99'])
                     
-                # 補充：觀察投信連買
-                sitc_five_days = df_inst['Investment_Trust'].sum()
-                if sitc_five_days > 500: # 五日累積買超五百張以上
-                    st.write(f"🔥 **[投信鎖碼]**：投信近五日累計買超 `{sitc_five_days:.0f}` 張，有作帳行情或長期佈局的跡象。")
-            else:
-                st.write("暫無足夠的法人進出資料。")
+                    ax_inst.set_ylabel('買賣超張數 (張)')
+                    ax_inst.set_title(f'{股票代號} 近五日法人進出趨勢', fontsize=14)
+                    ax_inst.axhline(0, color='black', linewidth=1, alpha=0.5)
+                    ax_inst.grid(axis='y', linestyle='--', alpha=0.4)
+                    plt.xticks(rotation=0)
+                    st.pyplot(fig_inst)
+                    
+                    # 法人分析文字內容
+                    latest_day = df_inst.iloc[-1]
+                    st.write("📝 **今日法人重點評析：**")
+                    if latest_day.get('Foreign_Investor', 0) > 0 and latest_day.get('Investment_Trust', 0) > 0:
+                        st.success("✅ **[英雄所見略同]**：外資與投信今日同步買超，通常是強力的攻擊訊號。")
+                    elif latest_day.get('Foreign_Investor', 0) < 0 and latest_day.get('Investment_Trust', 0) > 0:
+                        st.warning("⚠️ **[土洋對作]**：投信力挺但外資倒貨，觀察 5MA 支撐。")
+                    else:
+                        st.info("💡 法人動向分歧，籌碼尚在換手階段。")
+                else:
+                    st.warning("⚠️ 無法取得法人進出細節。")
+
+        # --- 分頁 3: 基本面 (營收與毛利) ---
+        with tab3:
+            fund_start_date = (pd.Timestamp.now() - pd.Timedelta(days=500)).strftime('%Y-%m-%d')
+            try:
+                fund_data = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=fund_start_date)
+                if not fund_data.empty:
+                    df_rev = fund_data[fund_data['type'] == 'Revenue'].tail(4).copy()
+                    df_gp = fund_data[fund_data['type'] == 'GrossProfit'].tail(4).copy()
+                    
+                    if not df_rev.empty and not df_gp.empty:
+                        df_merge = pd.merge(df_rev[['date', 'value']], df_gp[['date', 'value']], on='date', suffixes=('_rev', '_gp'))
+                        df_merge['rev_billion'] = df_merge['value_rev'] / 1e8
+                        df_merge['gp_margin'] = (df_merge['value_gp'] / df_merge['value_rev']) * 100
+
+                        fig_f, ax_f1 = plt.subplots(figsize=(10, 5))
+                        ax_f1.bar(df_merge['date'], df_merge['rev_billion'], color='#BDD7EE', label='季度營收(億)', width=0.4)
+                        ax_f1.set_ylabel('營收 (億元)', color='#2F5597', fontweight='bold')
+                        
+                        ax_f2 = ax_f1.twinx()
+                        ax_f2.plot(df_merge['date'], df_merge['gp_margin'], color='#ED7D31', marker='o', linewidth=3, label='毛利率(%)')
+                        ax_f2.set_ylabel('毛利率 (%)', color='#ED7D31', fontweight='bold')
+                        
+                        # 標註毛利率數值
+                        for i, txt in enumerate(df_merge['gp_margin']):
+                            ax_f2.annotate(f'{txt:.1f}%', (df_merge['date'].iloc[i], df_merge['gp_margin'].iloc[i]), 
+                                         textcoords="offset points", xytext=(0,10), ha='center', color='#C65911', fontweight='bold')
+
+                        plt.title(f"{股票代號} {股名} - 獲利能力趨勢", fontsize=14)
+                        st.pyplot(fig_f)
+                        
+                        latest_gp = df_merge['gp_margin'].iloc[-1]
+                        prev_gp = df_merge['gp_margin'].iloc[-2]
+                        gp_trend = "📈 提升" if latest_gp > prev_gp else "📉 下滑"
+                        st.info(f"💡 **最新季報摘要**：毛利率 `{latest_gp:.2f}%`，較上季表現 {gp_trend}。")
+                else:
+                    st.warning("⚠️ 查無財報數據，可能該公司尚未公佈最新季度報表。")
+            except Exception as e:
+                st.info("ℹ️ 基本面資料正在更新中或暫時無法存取。")
         
         # --- ８. 完整智慧診斷輸出 (防錯強健版) ---
         st.markdown("---")
