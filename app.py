@@ -185,8 +185,8 @@ else:
             st.write(f"自營商：:green[{區間自營:+,d}] | 權證避險：:green[{區間權證:+,d}]")
         with c2:
             st.subheader("📉 信用與借券數據")
-            st.write(f"融資變動：:green[{今日融資變動:+,d}` 張")
-            st.write(f"融券總餘額：:green[{融券總餘額:,.0f}` 張")
+            st.write(f"融資變動：:green[{今日融資變動:+,d}] 張")
+            st.write(f"融券總餘額：:green[{融券總餘額:,.0f}] 張")
 
         # --- 借券解析邏輯 (修正變數與縮排) ---
         if not 借券資料.empty:
