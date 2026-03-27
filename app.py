@@ -613,9 +613,9 @@ else:
                                 #ai-report-container {{
                                     background-color: #262730; 
                                     color: #FFFFFF;           
-                                    padding: 25px;            
+                                    padding: 18px;            
                                     border-radius: 12px;      
-                                    font-size: 20px;          
+                                    font-size: 16px;          
                                     line-height: 1.8;          
                                     border-left: 5px solid #009688;
                                     box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
