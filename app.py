@@ -582,5 +582,5 @@ else:
         st.error(f"❌ 診斷過程發生錯誤：{e}")
 
 # --- 10. 初始狀態與按鈕修復 (必須在最左邊，不縮進) ---
-if not clicked and "股名" not in locals():
+if "股名" not in locals():
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
