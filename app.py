@@ -539,20 +539,27 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (修正版) ---
+# --- 9. AI 投資顧問分析 (Debug 開關版) ---
+        # 在側邊欄最下方增加一個除錯開關 (選填)
+        with st.sidebar:
+            debug_mode = st.checkbox("顯示 AI 除錯資訊", value=False)
+
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                # 1) 列出可用模型並顯示支援的方法，方便除錯
+                # 1) 列出可用模型並顯示支援的方法 (僅在 Debug 模式顯示)
                 models = genai.list_models()
                 available_models = [m.name for m in models]
-                st.write("可用模型：", available_models)
-                for m in models:
-                    # 有些 SDK 物件屬性名稱可能不同，這裡用 getattr 安全取值
-                    methods = getattr(m, "supported_generation_methods", None)
-                    st.write(m.name, "支援的方法：", methods)
+                
+                if debug_mode:
+                    st.write("--- 🔍 Debug 資訊 ---")
+                    st.write("可用模型清單：", available_models)
+                    for m in models:
+                        methods = getattr(m, "supported_generation_methods", None)
+                        st.write(f"模型: {m.name} | 支援方法: {methods}")
+                    st.write("--------------------")
 
                 # 2) 選模型（優先順序）
                 model_name = None
@@ -560,18 +567,21 @@ else:
                     model_name = "gemini-1.5-flash"
                 elif "gemini-1.5-pro" in available_models:
                     model_name = "gemini-1.5-pro"
+                # 有些 SDK 會回傳帶有 models/ 前綴的名稱，做個相容性判斷
+                elif any("gemini-1.5-flash" in m for m in available_models):
+                    model_name = next(m for m in available_models if "gemini-1.5-flash" in m)
                 else:
                     model_name = available_models[0] if available_models else None
 
-                # 3) 若沒模型就提示
+                # 3) 顯示使用模型資訊 (這部分保留)
                 if not model_name:
                     st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
                 else:
-                    st.write(f"使用模型：{model_name}")
+                    st.caption(f"🤖 系統目前連結模型：{model_name}")
 
-                    # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
+                    # 4) 建立 prompt
                     ai_prompt = f"""
-                    你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
+                    你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 400 字內的專業投資建議：
                     股票：{股票代號} {股名}
                     技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
                     籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
@@ -583,27 +593,24 @@ else:
                     3. 進出場建議 (買進、加碼、續抱、獲利了結)。
                     """
 
-                    # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
+                    # 5) 嘗試呼叫模型
                     try:
                         model = genai.GenerativeModel(model_name)
                         response = model.generate_content(ai_prompt)
-                        # 取出回傳文字（不同 SDK 版本回傳結構可能不同）
                         text = getattr(response, "text", None)
                         if not text:
-                            # 嘗試其他常見欄位
                             text = getattr(response, "output_text", None) or getattr(response, "output", None)
+                        
                         if text:
                             st.markdown("---")
                             st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
                         else:
-                            st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
-                    except AttributeError as ae:
-                        st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
+                            st.warning("AI 有回應但無法解析回傳內容。")
                     except Exception as e:
                         st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
 
             except Exception as ai_err:
-                st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
+                st.warning(f"🕒 AI 服務啟動失敗。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
