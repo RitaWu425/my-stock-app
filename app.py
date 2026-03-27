@@ -539,71 +539,103 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (修正版) ---
+# --- 9. AI 投資顧問分析 (穩定模型名單 + Debug + 自訂樣式) ---
+        
+        # 建議將此 debug_mode 移至 sidebar 參數設定區，以防頁面重整
+        debug_mode = st.sidebar.checkbox("🔍 顯示 AI 除錯資訊", value=False)
+
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 
-                # 1) 列出可用模型並顯示支援的方法，方便除錯
+                # 取得清單並顯示 Debug 資訊
                 models = genai.list_models()
                 available_models = [m.name for m in models]
-                st.write("可用模型：", available_models)
-                for m in models:
-                    # 有些 SDK 物件屬性名稱可能不同，這裡用 getattr 安全取值
-                    methods = getattr(m, "supported_generation_methods", None)
-                    st.write(m.name, "支援的方法：", methods)
+                
+                if debug_mode:
+                    st.write("--- 🔍 Debug 資訊 ---")
+                    st.write("目前環境可用模型清單：", available_models)
+                    st.write("--------------------")
 
-                # 2) 選模型（優先順序）
+                # 【模型優先名單】：優先選用 Flash 系列以避開配額限制
+                priority_models = [
+                    "models/gemini-2.0-flash", 
+                    "models/gemini-2.0-flash-lite",
+                    "models/gemini-flash-latest",
+                    "models/gemini-1.5-flash"
+                ]
+                
                 model_name = None
-                if "gemini-1.5-flash" in available_models:
-                    model_name = "gemini-1.5-flash"
-                elif "gemini-1.5-pro" in available_models:
-                    model_name = "gemini-1.5-pro"
-                else:
+                for p_model in priority_models:
+                    if p_model in available_models:
+                        model_name = p_model
+                        break
+                
+                # 如果優先名單都沒有，則自動抓第一個
+                if not model_name:
                     model_name = available_models[0] if available_models else None
 
-                # 3) 若沒模型就提示
                 if not model_name:
-                    st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
+                    st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key。")
                 else:
-                    st.write(f"使用模型：{model_name}")
+                    # 顯示目前使用的模型 (使用小字 caption)
+                    st.caption(f"🤖 系統目前連結穩定模型：{model_name}")
 
-                    # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
-                    ai_prompt = f"""
-                    你是一位精通台股與籌碼分析的專家，請針對以下數據提供 300 字內的「繁體中文」大白話投資建議：
-                    股票：{股票代號} {股名}
-                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
-                    籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
-                    目前借券餘額：{最新借券餘額} 張。
+                    # 使用 spinner 顯示分析中狀態
+                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據，請稍候..."):
+                        
+                        ai_prompt = f"""
+                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
+                        股票：{股票代號} {股名}
+                        技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                        籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
+                        目前借券餘額：{最新借券餘額} 張。
 
-                    請直接告訴我：
-                    1. 這檔股票目前的亮點在哪？
-                    2. 最大的風險是什麼？
-                    3. 進出場建議 (買進、加碼、續抱、獲利了結)。
-                    """
+                        請直接告訴我：
+                        1. 這檔股票目前的亮點在哪？
+                        2. 最大的風險是什麼？
+                        3. 進出場建議 (買進、加碼、續抱、獲利了結)。
+                        """
 
-                    # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
-                    try:
+                        # 呼叫模型
                         model = genai.GenerativeModel(model_name)
                         response = model.generate_content(ai_prompt)
-                        # 取出回傳文字（不同 SDK 版本回傳結構可能不同）
+                        
+                        # 安全取得回覆內容
                         text = getattr(response, "text", None)
                         if not text:
-                            # 嘗試其他常見欄位
                             text = getattr(response, "output_text", None) or getattr(response, "output", None)
+                        
                         if text:
                             st.markdown("---")
-                            st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                            st.subheader("💡 AI 診斷顧問意見")
+                            
+                            # 自訂高亮樣式：字體加大(20px)、文字白色、深色質感背景
+                            st.markdown(f"""
+                            <div style="
+                                background-color: #262730; 
+                                color: #FFFFFF;           
+                                padding: 25px;            
+                                border-radius: 12px;      
+                                font-size: 20px;          
+                                line-height: 1.8;          
+                                border-left: 5px solid #009688;
+                                box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+                                ">
+                                {text.replace('\n', '<br>')}
+                            </div>
+                            """, unsafe_allow_html=True)
                         else:
-                            st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
-                    except AttributeError as ae:
-                        st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
-                    except Exception as e:
-                        st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
+                            st.warning("AI 有回應但無法解析內容，請稍後重試。")
 
             except Exception as ai_err:
-                st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
+                # 捕捉 429 額度錯誤並給予友善提示
+                if "429" in str(ai_err):
+                    st.error("🕒 **目前 AI 顧問過於忙碌 (額度已滿)**")
+                    st.info("由於免費版 API 限制，請等待約 1 分鐘後再重新執行診斷。")
+                else:
+                    st.warning(f"🕒 AI 服務啟動失敗。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
