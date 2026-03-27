@@ -95,36 +95,59 @@ else:
         最新借券餘額 = 0
         連續回補 = 0
         還券比 = 0  
-        # --- 3. 核心數據計算 ---
+        # --- 3. 核心數據計算 (強化版) ---
+        # A. 基礎變數初始化 (防止後方報錯)
+        外資 = 0; 投信 = 0; 自營 = 0; 權證 = 0; 籌碼集中度 = 0
+        今日融資變動 = 0; 融券總餘額 = 0
+        
+        # B. 股價與技術指標計算
         股價資料['date'] = pd.to_datetime(股價資料['date'])
         股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
-        股價資料['Trading_Volume_Lots'] = 股價資料['Trading_Volume'] // 1000
+        # 處理交易量單位 (張)
+        vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
+        股價資料['Trading_Volume_Lots'] = 股價資料[vol_col] // 1000
         股價資料['5MA_Vol'] = 股價資料['Trading_Volume_Lots'].rolling(5).mean()
 
+        # RSI 計算
         delta = 股價資料['close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
-        rs = gain / loss
+        # 避免除以 0
+        rs = gain / loss.replace(0, 0.001)
         股價資料['RSI'] = 100 - (100 / (1 + rs))
 
-        最新, 昨日 = 股價資料.iloc[-1], 股價資料.iloc[-2]
-        最新股價, 最新5MA, 最新RSI = 最新['close'], 最新['5MA'], 最新['RSI']
-        今日張數, 今日5MA量 = 最新['Trading_Volume_Lots'], 最新['5MA_Vol']
+        # 取得最新與昨日數據
+        最新 = 股價資料.iloc[-1]
+        昨日 = 股價資料.iloc[-2]
+        最新股價 = 最新['close']
+        最新5MA = 最新['5MA']
+        最新RSI = 最新['RSI']
+        今日張數 = 最新['Trading_Volume_Lots']
+        今日5MA量 = 最新['5MA_Vol']
 
-        def get_net_buy(df, name):
-            target = df[df['name'] == name]
-            return (target['buy'].sum() - target['sell'].sum()) // 1000
+        # C. 法人數據計算
+        if not 法人資料.empty:
+            def get_net_buy(df, name):
+                target = df[df['name'] == name]
+                if target.empty: return 0
+                return (target['buy'].sum() - target['sell'].sum()) // 1000
 
-        區間外資 = get_net_buy(法人資料, 'Foreign_Investor')
-        區間投信 = get_net_buy(法人資料, 'Investment_Trust')
-        區間自營 = get_net_buy(法人資料, 'Dealer_self')
-        區間權證 = get_net_buy(法人資料, 'Dealer_Hedging')
-        法人總計 = 區間外資 + 區間投信 + 區間自營 + 區間權證
-        籌碼集中度 = (法人總計 / 股價資料['Trading_Volume_Lots'].sum()) * 100
+            外資 = get_net_buy(法人資料, 'Foreign_Investor')
+            投信 = get_net_buy(法人資料, 'Investment_Trust')
+            自營 = get_net_buy(法人資料, 'Dealer_self')
+            權證 = get_net_buy(法人資料, 'Dealer_Hedging')
+            
+            法人總計 = 外資 + 投信 + 自營 + 權證
+            總成交張數 = 股價資料['Trading_Volume_Lots'].sum()
+            if 總成交張數 > 0:
+                籌碼集中度 = (法人總計 / 總成交張數) * 100
 
-        今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
-        融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
-
+        # D. 融資券數據計算 (加入長度檢查)
+        if len(融資券資料) >= 2:
+            今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
+            融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
+        elif not 融資券資料.empty:
+            融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 終極診斷報告")
         
