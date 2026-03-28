@@ -167,7 +167,7 @@ else:
             今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
             融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
         # --- 4. 網頁視覺化輸出 ---
-        st.title(f"📈 {股票代號} {股名} 終極診斷報告")
+        st.title(f"📈 {股票代號} {股名} 　診斷報告")
         
         # 頂部儀表板
         col1, col2, col3, col4 = st.columns(4)
@@ -572,38 +572,39 @@ else:
 
                     model = genai.GenerativeModel(model_name)
                     with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
-                    # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
-                    ai_prompt = f"""
-                    你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
-                    股票：{股票代號} {股名}
-                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
-                    籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
-                    目前借券餘額：{最新借券餘額} 張。
+                        # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
+                        ai_prompt = f"""
+                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
+                        股票：{股票代號} {股名}
+                        技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                        籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
+                        目前借券餘額：{最新借券餘額} 張。
 
-                    請直接告訴我：
-                    1. 這檔股票目前的亮點在哪？
-                    2. 最大的風險是什麼？
-                    3. 進出場建議 (買進、加碼、續抱、獲利了結)。
-                    """
+                        請直接告訴我：
+                        1. 這檔股票目前的亮點在哪？
+                        2. 最大的風險是什麼？
+                        3. 進出場建議 (買進、加碼、續抱、獲利了結)。
+                        """
 
-                    # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
-                    try:
-                        model = genai.GenerativeModel(model_name)
-                        response = model.generate_content(ai_prompt)
-                        # 取出回傳文字（不同 SDK 版本回傳結構可能不同）
-                        text = getattr(response, "text", None)
-                        if not text:
-                            # 嘗試其他常見欄位
-                            text = getattr(response, "output_text", None) or getattr(response, "output", None)
-                        if text:
-                            st.markdown("---")
-                            st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
-                        else:
-                            st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
-                    except AttributeError as ae:
-                        st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
-                    except Exception as e:
-                        st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
+                        # 5) 嘗試呼叫模型
+                        try:
+                            model = genai.GenerativeModel(model_name)
+                            response = model.generate_content(ai_prompt)
+                            # 取出回傳文字
+                            text = getattr(response, "text", None)
+                            if not text:
+                                # 嘗試其他常見欄位
+                                text = getattr(response, "output_text", None) or getattr(response, "output", None)
+                            
+                            if text:
+                                st.markdown("---")
+                                st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                            else:
+                                st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
+                        except AttributeError as ae:
+                            st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
+                        except Exception as e:
+                            st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
 
             except Exception as ai_err:
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
@@ -617,4 +618,3 @@ else:
 # --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
 if "股名" not in locals():
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
-
