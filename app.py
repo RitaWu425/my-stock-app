@@ -571,7 +571,7 @@ else:
                     st.write(f"目前使用的模型：{model_name}")
 
                     model = genai.GenerativeModel(model_name)
-　　　　　　　　　　　with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
+                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
                     # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
                     ai_prompt = f"""
                     你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
