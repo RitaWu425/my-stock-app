@@ -216,13 +216,13 @@ else:
 
             # 2. 顯示文字解析摘要 (包含連續回補燈號)
             status_color = "🟢" if 連續回補 > 0 else "⚪"
-            st.info(f"{status_color} **借券賣出摘要**：目前連續回補 `{連續回補}` 天。最新餘額 `{最新借券餘額:,.0f}` 張，整體還券力道為 `{還券比:.2f}%`。")
+            st.info(f"{status_color} **借券賣出摘要**：目前連續回補 green[{連續回補}] 天。最新餘額 green[{最新借券餘額:,.0f}] 張，整體還券力道為 green[{還券比:.2f}%]。")
 
             # 3. 淨回補動態判斷 (修正語法結構)
             if 今日還券 > 借券賣出:
-                st.success(f"💥 今日「借券賣出」：{借券賣出:,.0f} 張 | 今日『還券』大於『賣出』，淨回補 {今日還券 - 借券賣出:,.0f} 張，空頭力量消退中。")
+                st.success(f"💥 今日「借券賣出」：green[{借券賣出:,.0f}] 張 | 今日『還券』大於『賣出』，淨回補 green[{今日還券 - 借券賣出:,.0f}] 張，空頭力量消退中。")
             else:
-                st.error(f"💥 今日「借券賣出」：{借券賣出:,.0f} 張 | 賣出大於還券，法人空方力道仍存。")
+                st.error(f"💥 今日「借券賣出」：green[{借券賣出:,.0f}]張 | 賣出大於還券，法人空方力道仍存。")
         else:
             st.warning("⚠️ 暫無借券資料可供分析。")
         # --- 數據深度拆解說明 (全面升級版) ---
@@ -570,7 +570,7 @@ else:
                 else:
                     st.write(f"目前使用的模型：{model_name}")
 
-　　　　　　　　　　　model = genai.GenerativeModel(model_name)
+                    model = genai.GenerativeModel(model_name)
 　　　　　　　　　　　with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
                     # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
                     ai_prompt = f"""
