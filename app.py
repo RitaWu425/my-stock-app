@@ -38,7 +38,7 @@ dl = init_all()
 st.markdown("""
     <style>
     .stMetric label { font-size: 20px !important; color: #BBBBBB !important; }
-    .stMetric div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold !important; }
+    .stMetric div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: normal !important; }
     .data-label { font-size: 18px; font-weight: bold; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
@@ -547,11 +547,11 @@ else:
             <style>
             #ai-result-box {
                 background-color: rgba(0, 150, 136, 0.1); /* 半透明深綠/藍底色 */
-                color: #2ECC71 !important; /* 專業亮綠色 (還原) */
+                color: #00FFD5 !important; /* 青綠色 (還原) */
                 padding: 20px 25px; /* 內縮空間，讓文字有呼吸感 */
                 border-radius: 12px; /* 圓角 */
                 font-size: 18px !important; /* 適度加大 (原本大約 16px)，不顯突兀 */
-                font-weight: bold; /* 加粗，增加清晰度 */
+                font-weight: normal; /* 加粗bold，增加清晰度 */
                 line-height: 1.8; /* 加大行距，易於條列閱讀 */
                 border-left: 5px solid #2ECC71; /* 左側綠色直條，增加提示感 */
                 margin-top: 15px; /* 與上方圖表保持距離 */
