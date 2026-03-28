@@ -541,6 +541,19 @@ else:
 
 # --- 9. AI 投資顧問分析 (DEBUG 開關：開發時 True，正式環境 False) ---
         DEBUG = False
+        
+        # --- [新增] CSS 樣式定義：只在按下按鈕後載入 ---
+        st.markdown("""
+            <style>
+            .ai-result {
+                color: #FFD700 !important; /* 金黃色 */
+                font-size: 20px !important;
+                font-weight: bold;
+                line-height: 1.6;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
@@ -548,14 +561,13 @@ else:
                 models = genai.list_models()
                 available_models = [m.name for m in models]
                 
-                # 1) 只有在 DEBUG=True 時才顯示完整清單
                 if DEBUG:
                     st.write("可用模型：", available_models)
                     for m in models:
                         methods = getattr(m, "supported_generation_methods", None)
                         st.write(m.name, "支援的方法：", methods)
 
-                # 2) 模型選擇邏輯：優先 flash-lite → flash → pro
+                # 模型選擇邏輯
                 model_name = None
                 if "models/gemini-2.5-flash-lite" in available_models:
                     model_name = "models/gemini-2.5-flash-lite"
@@ -564,7 +576,6 @@ else:
                 else:
                     model_name = available_models[0] if available_models else None
 
-                # 3) 若沒模型就提示
                 if not model_name:
                     st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
                 else:
@@ -572,7 +583,6 @@ else:
 
                     model = genai.GenerativeModel(model_name)
                     with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
-                        # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
                         ai_prompt = f"""
                         你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
                         股票：{股票代號} {股名}
@@ -586,23 +596,27 @@ else:
                         3. 進出場建議 (買進、加碼、續抱、獲利了結)。
                         """
 
-                        # 5) 嘗試呼叫模型
                         try:
                             model = genai.GenerativeModel(model_name)
                             response = model.generate_content(ai_prompt)
-                            # 取出回傳文字
                             text = getattr(response, "text", None)
                             if not text:
-                                # 嘗試其他常見欄位
                                 text = getattr(response, "output_text", None) or getattr(response, "output", None)
                             
                             if text:
                                 st.markdown("---")
-                                st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                                st.subheader("💡 AI 診斷結果")
+                                
+                                # --- [新增] 改用 HTML 標籤套用樣式 ---
+                                st.markdown(f"""
+                                    <div class="ai-result">
+                                        {text.replace('\n', '<br>')}
+                                    </div>
+                                """, unsafe_allow_html=True)
                             else:
-                                st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
+                                st.warning("AI 有回應但無法解析回傳內容。")
                         except AttributeError as ae:
-                            st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
+                            st.error(f"呼叫模型的方法不存在：{ae}")
                         except Exception as e:
                             st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
 
@@ -611,10 +625,10 @@ else:
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
-    # --- 關鍵：這是對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
+    # --- 關鍵：對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
     except Exception as e:
         st.error(f"❌ 診斷過程發生重大錯誤：{e}")
 
-# --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
+# --- 10. 初始狀態與按鈕修復 (不縮進) ---
 if "股名" not in locals():
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
