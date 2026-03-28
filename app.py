@@ -39,7 +39,7 @@ st.markdown("""
     <style>
     .stMetric label { font-size: 20px !important; color: #BBBBBB !important; }
     .stMetric div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: normal !important; }
-    .data-label { font-size: 18px; font-weight: bold; color: #FFFFFF; margin-bottom: 5px; }
+    .data-label { font-size: 18px; font-weight: normal; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
     .val-neu { font-size: 22px; font-weight: bold; color: #FFFFFF; }
