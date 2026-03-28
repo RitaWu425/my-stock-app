@@ -539,17 +539,22 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (DEBUG 開關：開發時 True，正式環境 False) ---
+# --- 9. AI 投資顧問分析 (專業亮綠 + 適度加大樣式版) ---
         DEBUG = False
         
-        # --- [新增] CSS 樣式定義：只在按下按鈕後載入 ---
+        # --- [修正] 註冊專業樣式定義，只套用到 ID: ai-result-box 上 ---
         st.markdown("""
             <style>
-            .ai-result {
-                color: #FFD700 !important; /* 金黃色 */
-                font-size: 20px !important;
-                font-weight: bold;
-                line-height: 1.6;
+            #ai-result-box {
+                background-color: rgba(0, 150, 136, 0.1); /* 半透明深綠/藍底色 */
+                color: #2ECC71 !important; /* 專業亮綠色 (還原) */
+                padding: 20px 25px; /* 內縮空間，讓文字有呼吸感 */
+                border-radius: 12px; /* 圓角 */
+                font-size: 18px !important; /* 適度加大 (原本大約 16px)，不顯突兀 */
+                font-weight: bold; /* 加粗，增加清晰度 */
+                line-height: 1.8; /* 加大行距，易於條列閱讀 */
+                border-left: 5px solid #2ECC71; /* 左側綠色直條，增加提示感 */
+                margin-top: 15px; /* 與上方圖表保持距離 */
             }
             </style>
             """, unsafe_allow_html=True)
@@ -579,10 +584,13 @@ else:
                 if not model_name:
                     st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
                 else:
-                    st.write(f"目前使用的模型：{model_name}")
+                    # 顯示連結狀態使用 caption
+                    st.caption(f"🤖 連結模型：{model_name}")
 
                     model = genai.GenerativeModel(model_name)
-                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
+                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據，請稍候..."):
+                        
+                        # 定義對齊技術規格的 Prompt (完整保留)
                         ai_prompt = f"""
                         你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
                         股票：{股票代號} {股名}
@@ -599,17 +607,20 @@ else:
                         try:
                             model = genai.GenerativeModel(model_name)
                             response = model.generate_content(ai_prompt)
+                            
                             text = getattr(response, "text", None)
                             if not text:
                                 text = getattr(response, "output_text", None) or getattr(response, "output", None)
                             
                             if text:
                                 st.markdown("---")
+                                # 這裡的 subheader 可以維持標準樣式
                                 st.subheader("💡 AI 診斷結果")
                                 
-                                # --- [新增] 改用 HTML 標籤套用樣式 ---
+                                # --- [關鍵修正] 套用 HTML 標籤與特定 ID ---
+                                # 此區塊將呈現專業亮綠色、半透明背景、18px 字體，且不影響首頁
                                 st.markdown(f"""
-                                    <div class="ai-result">
+                                    <div id="ai-result-box">
                                         {text.replace('\n', '<br>')}
                                     </div>
                                 """, unsafe_allow_html=True)
