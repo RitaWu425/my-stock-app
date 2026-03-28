@@ -539,27 +539,28 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (修正版) ---
+# --- 9. AI 投資顧問分析 (DEBUG 開關：開發時 True，正式環境 False) ---
+        DEBUG = False
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                
-                # 1) 列出可用模型並顯示支援的方法，方便除錯
                 models = genai.list_models()
                 available_models = [m.name for m in models]
-                st.write("可用模型：", available_models)
-                for m in models:
-                    # 有些 SDK 物件屬性名稱可能不同，這裡用 getattr 安全取值
-                    methods = getattr(m, "supported_generation_methods", None)
-                    st.write(m.name, "支援的方法：", methods)
+                
+                # 1) 只有在 DEBUG=True 時才顯示完整清單
+                if DEBUG:
+                    st.write("可用模型：", available_models)
+                    for m in models:
+                        methods = getattr(m, "supported_generation_methods", None)
+                        st.write(m.name, "支援的方法：", methods)
 
-                # 2) 選模型（優先順序）
+                # 2) 模型選擇邏輯：優先 flash-lite → flash → pro
                 model_name = None
-                if "gemini-1.5-flash" in available_models:
-                    model_name = "gemini-1.5-flash"
-                elif "gemini-1.5-pro" in available_models:
-                    model_name = "gemini-1.5-pro"
+                if "models/gemini-2.5-flash-lite" in available_models:
+                    model_name = "models/gemini-2.5-flash-lite"
+                elif "models/gemini-2.5-flash" in available_models:
+                    model_name = "models/gemini-2.5-flash"
                 else:
                     model_name = available_models[0] if available_models else None
 
@@ -567,8 +568,10 @@ else:
                 if not model_name:
                     st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
                 else:
-                    st.write(f"使用模型：{model_name}")
+                    st.write(f"目前使用的模型：{model_name}")
 
+　　　　　　　　　　　model = genai.GenerativeModel(model_name)
+　　　　　　　　　　　with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
                     # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
                     ai_prompt = f"""
                     你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
