@@ -58,7 +58,7 @@ default_end_date = now.date() - timedelta(days=1)
 
 st.sidebar.header("📊 診斷參數設定")
 股票代號 = st.sidebar.text_input("輸入股票代號", value="3481")
-開始日期 = st.sidebar.date_input("開始日期", value=pd.to_datetime("2026-02-01"))
+開始日期 = st.sidebar.date_input("開始日期", value=pd.to_datetime("2026-01-01"))
 結束日期 = st.sidebar.date_input("結束日期", value=default_end_date)
 執行診斷 = st.sidebar.button("開始執行診斷")
 
@@ -592,7 +592,7 @@ else:
                         
                         # 定義對齊技術規格的 Prompt (完整保留)
                         ai_prompt = f"""
-                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據提供 350 字內的專業投資建議：
+                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據並配合國際總經、地緣風險、產業前景等因素，提供 350 字內的專業投資建議：
                         股票：{股票代號} {股名}
                         技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
                         籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
