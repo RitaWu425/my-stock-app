@@ -59,7 +59,7 @@ default_end_date = now.date() - timedelta(days=1)
 
 st.sidebar.header("📊 診斷參數設定")
 股票代號 = st.sidebar.text_input("輸入股票代號", value="3481")
-開始日期 = st.sidebar.date_input("開始日期", value=pd.to_datetime("2026-02-01"))
+開始日期 = st.sidebar.date_input("開始日期", value=pd.to_datetime("2026-01-01"))
 結束日期 = st.sidebar.date_input("結束日期", value=default_end_date)
 執行診斷 = st.sidebar.button("開始執行診斷")
 
