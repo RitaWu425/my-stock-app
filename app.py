@@ -92,7 +92,8 @@ else:
             法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=開始日期)
 
             # --- 新增大盤資料抓取 ---
-            大盤資料 = dl.taiwan_stock_market_summary(start_date=str(開始日期), end_date=str(結束日期))
+            大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
+            大盤融資券 = dl.taiwan_stock_margin_purchase_short_sale(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
         
         # --- 預設值初始化 ---
         借券淨變動 = 0
@@ -108,9 +109,11 @@ else:
             大盤收盤 = 大盤最新['close']
             大盤漲跌 = 大盤最新['change']
             大盤漲跌幅 = 大盤最新['change_percent']
-            大盤成交量 = 大盤最新['Trading_Volume'] // 1000  # 換算成千張
-            大盤融資增減 = 大盤最新['MarginPurchaseChange'] // 1000
-            大盤融資餘額 = 大盤最新['MarginPurchaseBalance'] // 1000
+            大盤成交量 = 大盤最新['Trading_Volume'] // 1000
+
+        if not 大盤融資券.empty and len(大盤融資券) >= 2:
+            大盤融資增減 = (大盤融資券.iloc[-1]['MarginPurchaseTodayBalance'] - 大盤融資券.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
+            大盤融資餘額 = 大盤融資券.iloc[-1]['MarginPurchaseTodayBalance'] // 1000
         
         # --- 3. 核心數據計算 (全面修復與命名統一版) ---
         
