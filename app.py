@@ -131,7 +131,7 @@ else:
                 大盤融券餘額 = int(最新["ShortSaleBalance"]) // 1000
                 大盤融券增減 = int(最新["ShortSaleTodayBalanceChange"]) // 1000
             else:
-                大盤融資餘額 = 大盤融資增減 = 0
+                大盤融資餘額 = 大盤融資增減 = 大盤融券餘額 = 大盤融券增減 = 0
          
         # --- 預設值初始化 ---
         借券淨變動 = 0
