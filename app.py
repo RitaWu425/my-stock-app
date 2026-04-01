@@ -109,7 +109,7 @@ else:
                 end_date=str(結束日期)
             )
             if not 大盤資料.empty:
-                大盤最新 = index_data[-1]
+                大盤最新   = 大盤資料.iloc[-1]
                 大盤收盤   = float(大盤最新["close"])
                 大盤漲跌   = float(大盤最新["spread"])
                 前日收盤   = float(大盤資料.iloc[-2]["close"]) if len(大盤資料) >= 2 else 大盤收盤
@@ -126,7 +126,7 @@ else:
             )
 
             if not 融資券總表.empty:
-                最新 = margin_data["data"][-1]
+                最新 = 融資券總表.iloc[-1]
                 大盤融資餘額 = int(最新["MarginPurchaseBalance"]) // 1000
                 大盤融資增減 = int(最新["MarginPurchaseTodayBalanceChange"]) // 1000
                 大盤融券餘額 = int(最新["ShortSaleBalance"]) // 1000
