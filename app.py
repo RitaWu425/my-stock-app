@@ -73,90 +73,73 @@ if not 執行診斷:
     - **AI 顧問**：基於數據的投資亮點與風險分析。
     """)
 else: # 執行診斷 = True
-    # --- 1. 全域變數初始化 (防止 NameError 的核心關鍵) ---
-    # 大盤相關
+    # --- 1. 極致初始化 (所有 UI 會用到的變數都先給預設值) ---
     大盤收盤 = 大盤漲跌 = 大盤漲幅 = 大盤成交量 = 大盤融資餘額 = 大盤融資變動 = 0.0
-    盤_最新 = 盤_昨日 = pd.Series()
-    
-    # 法人相關 (統一使用「區間」開頭以相容你的 UI)
     區間外資 = 區間投信 = 區間自營 = 區間權證 = 籌碼集中度 = 0
-    
-    # 信用與借券相關
     今日融資變動 = 融券總餘額 = 0
     最新借券餘額 = 今日還券 = 借券賣出 = 連續回補 = 還券比 = 0
-    
-    # 個股技術面
-    最新股價 = 最新5MA = 最新RSI = 今日張數 = 0
-    昨日 = pd.Series()
-    股名 = "未知"
+    最新股價 = 最新5MA = 最新RSI = 今日張數 = 今日5MA量 = 0
+    股名 = "載入中..."
+    昨日收盤 = 0.0
 
     try:
-        with st.spinner('🤖 AI 顧問正在同步研讀所有數據...'):
+        with st.spinner('🤖 正在擷取並同步全球數據數據...'):
             # --- 2. 資料抓取 ---
-            大盤股價 = dl.taiwan_stock_daily(stock_id='tse', start_date=str(開始日期), end_date=str(結束日期))
-            大盤信用 = dl.get_data(dataset="TaiwanStockMarginPurchaseShortSale", data_id="Overall", start_date=str(開始日期), end_date=str(結束日期))
-            
-            個股資訊 = dl.taiwan_stock_info()
-            match_name = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values
-            股名 = match_name[0] if len(match_name) > 0 else "未知"
-            
+            # 增加 try-except 保護每一支 API，確保一支掛掉不會全盤崩潰
+            try:
+                大盤股價 = dl.taiwan_stock_daily(stock_id='tse', start_date=str(開始日期), end_date=str(結束日期))
+                大盤信用 = dl.get_data(dataset="TaiwanStockMarginPurchaseShortSale", data_id="Overall", start_date=str(開始日期), end_date=str(結束日期))
+            except: 大盤股價 = 大盤信用 = pd.DataFrame()
+
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
+            
+            # 獲取股名
+            try:
+                個股資訊 = dl.taiwan_stock_info()
+                股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
+            except: 股名 = "未知股票"
 
-            # --- 3. 數據運算邏輯 (增加資料長度檢查) ---
-            # [大盤計算]
+            # --- 3. 數據計算 (每一段都加 if not empty) ---
             if not 大盤股價.empty and len(大盤股價) >= 2:
-                盤_最新, 盤_昨日 = 大盤股價.iloc[-1], 大盤股價.iloc[-2]
-                大盤收盤, 大盤漲跌 = 盤_最新['close'], 盤_最新['close'] - 盤_昨日['close']
-                大盤漲幅 = (大盤漲跌 / 盤_昨日['close']) * 100
-                大盤成交量 = 盤_最新.get('Trading_Money', 0) / 1e8
+                大盤收盤 = 大盤股價.iloc[-1]['close']
+                大盤漲跌 = 大盤收盤 - 大盤股價.iloc[-2]['close']
+                大盤漲幅 = (大盤漲跌 / 大盤股價.iloc[-2]['close']) * 100
+                大盤成交量 = 大盤股價.iloc[-1].get('Trading_Money', 0) / 1e8
 
-            if not 大盤信用.empty and len(大盤信用) >= 2:
-                信_最新, 信_昨日 = 大盤信用.iloc[-1], 大盤信用.iloc[-2]
-                大盤融資餘額 = 信_最新['MarginPurchaseTodayBalance'] / 1e8
-                大盤融資變動 = (信_最新['MarginPurchaseTodayBalance'] - 信_昨日['MarginPurchaseTodayBalance']) / 1e8
-
-            # [個股技術面]
             if not 股價資料.empty and len(股價資料) >= 6:
                 股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
                 vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
                 股價資料['Lots'] = 股價資料[vol_col] // 1000
+                股價資料['5MA_Vol'] = 股價資料['Lots'].rolling(5).mean()
                 
-                # RSI 簡易計算
+                # RSI 計算
                 diff = 股價資料['close'].diff()
                 g = (diff.where(diff > 0, 0)).rolling(6).mean()
                 l = (-diff.where(diff < 0, 0)).rolling(6).mean()
                 股價資料['RSI'] = 100 - (100 / (1 + (g / l.replace(0, 0.001))))
                 
-                curr, prev = 股價資料.iloc[-1], 股價資料.iloc[-2]
-                最新股價, 最新5MA, 最新RSI, 今日張數 = curr['close'], curr['5MA'], curr['RSI'], curr['Lots']
-                昨日 = prev
+                最新股價 = 股價資料.iloc[-1]['close']
+                最新5MA = 股價資料.iloc[-1]['5MA']
+                最新RSI = 股價資料.iloc[-1]['RSI']
+                今日張數 = 股價資料.iloc[-1]['Lots']
+                今日5MA量 = 股價資料.iloc[-1]['5MA_Vol']
+                昨日收盤 = 股價資料.iloc[-2]['close']
 
-            # [法人籌碼精確計算]
             if not 法人資料.empty:
-                def get_net_lots(df, target_name):
-                    sub = df[df['name'] == target_name]
+                def get_net(name):
+                    sub = 法人資料[法人資料['name'] == name]
                     return (sub['buy'].sum() - sub['sell'].sum()) // 1000
-                
-                區間外資 = get_net_lots(法人資料, 'Foreign_Investor')
-                區間投信 = get_net_lots(法人資料, 'Investment_Trust')
-                區間自營 = get_net_lots(法人資料, 'Dealer_self')
-                區間權證 = get_net_lots(法人資料, 'Dealer_Hedging')
-                
-                total_vol = 股價資料['Lots'].sum() if not 股價資料.empty else 1
-                籌碼集中度 = ((區間外資 + 區間投信 + 區間自營 + 區間權證) / total_vol * 100)
+                區間外資, 區間投信 = get_net('Foreign_Investor'), get_net('Investment_Trust')
+                區間自營, 區間權證 = get_net('Dealer_self'), get_net('Dealer_Hedging')
 
-            # [借券與信用解析]
             if not 借券資料.empty:
                 s_curr = 借券資料.iloc[-1]
                 最新借券餘額 = s_curr['SBLShortSalesPreviousDayBalance'] // 1000
-                今日還券 = s_curr['SBLShortSalesReturns'] // 1000
-                借券賣出 = s_curr['SBLShortSalesShortSales'] // 1000
+                今日還券, 借券賣出 = s_curr['SBLShortSalesReturns'] // 1000, s_curr['SBLShortSalesShortSales'] // 1000
                 還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
-                
-                # 計算連續回補天數
                 for i in range(len(借券資料)-1, -1, -1):
                     if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
                         連續回補 += 1
@@ -165,7 +148,8 @@ else: # 執行診斷 = True
             if not 融資券資料.empty and len(融資券資料) >= 2:
                 今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
                 融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
-
+    except Exception as e:
+        st.error(f"⚠️ 數據擷取部分異常，僅顯示現有資訊：{e}")
         # --- 4. UI 視覺化輸出 (與 with spinner 對齊) ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
         
