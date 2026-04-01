@@ -181,6 +181,7 @@ else:
         except Exception as e:
             # 這裡的 except 必須精確對齊它上面的 try
             st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+            
         # 法人與信用
         st.markdown("---")
         c1, c2 = st.columns(2)
@@ -640,10 +641,6 @@ else:
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
-
-    # --- 關鍵：對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
-    except Exception as e:
-        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
 
 # --- 10. 初始狀態與按鈕修復 (不縮進) ---
 if "股名" not in locals():
