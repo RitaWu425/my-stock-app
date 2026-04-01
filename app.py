@@ -38,8 +38,8 @@ dl = init_all()
 st.markdown("""
     <style>
     .stMetric label { font-size: 20px !important; color: #BBBBBB !important; }
-    .stMetric div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: normal !important; }
-    .data-label { font-size: 18px; font-weight: normal; color: #FFFFFF; margin-bottom: 5px; }
+    .stMetric div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold !important; }
+    .data-label { font-size: 18px; font-weight: bold; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
     .val-neu { font-size: 22px; font-weight: bold; color: #FFFFFF; }
@@ -58,7 +58,7 @@ default_end_date = now.date() - timedelta(days=1)
 
 st.sidebar.header("📊 診斷參數設定")
 股票代號 = st.sidebar.text_input("輸入股票代號", value="3481")
-開始日期 = st.sidebar.date_input("開始日期", value=pd.to_datetime("2026-01-01"))
+開始日期 = st.sidebar.date_input("開始日期", value=pd.to_datetime("2026-02-01"))
 結束日期 = st.sidebar.date_input("結束日期", value=default_end_date)
 執行診斷 = st.sidebar.button("開始執行診斷")
 
@@ -73,115 +73,141 @@ if not 執行診斷:
     - **AI 顧問**：基於數據的投資亮點與風險分析。
     """)
 else:
-        try:
-            with st.spinner('正在分析數據中...'):
-                # 1. 資料抓取 (大盤 + 個股)
-                大盤股價 = dl.taiwan_stock_daily(stock_id='tse', start_date=str(開始日期), end_date=str(結束日期))
-                大盤信用 = dl.get_data(dataset="TaiwanStockMarginPurchaseShortSale", data_id="Overall", start_date=str(開始日期), end_date=str(結束日期))
-                
-                個股資訊 = dl.taiwan_stock_info()
-                股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
-                法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-                股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-                融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-                借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-                
-                財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
-                基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
-
-                # 2. 大盤數據計算
-                大盤收盤 = 0; 大盤漲跌 = 0; 大盤漲幅 = 0; 大盤成交量 = 0
-                if not 大盤股價.empty:
-                    盤_最新 = 大盤股價.iloc[-1]
-                    盤_昨日 = 大盤股價.iloc[-2]
-                    大盤收盤 = 盤_最新['close']
-                    大盤漲跌 = 大盤收盤 - 盤_昨日['close']
-                    大盤漲幅 = (大盤漲跌 / 盤_昨日['close']) * 100
-                    大盤成交量 = 盤_最新['Trading_Money'] / 100000000 
-                
-                大盤融資變動 = 0; 大盤融資餘額 = 0
-                if not 大盤信用.empty:
-                    信_最新 = 大盤信用.iloc[-1]
-                    信_昨日 = 大盤信用.iloc[-2]
-                    大盤融資餘額 = 信_最新['MarginPurchaseTodayBalance'] / 100000000 
-                    大盤融資變動 = (信_最新['MarginPurchaseTodayBalance'] - 信_昨日['MarginPurchaseTodayBalance']) / 100000000
-
-                # 3. 核心數據計算 (個股部分)
-                外資 = 0; 投信 = 0; 自營 = 0; 權證 = 0; 籌碼集中度 = 0
-                今日融資變動 = 0; 融券總餘額 = 0
-                最新借券餘額 = 0; 今日還券 = 0; 借券賣出 = 0; 連續回補 = 0; 還券比 = 0
-                最新股價 = 0; 最新5MA = 0; 最新RSI = 0; 今日張數 = 0; 今日5MA量 = 1
-
-                if not 股價資料.empty:
-                    股價資料['date'] = pd.to_datetime(股價資料['date'])
-                    股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
-                    vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
-                    股價資料['Trading_Volume_Lots'] = 股價資料[vol_col] // 1000
-                    股價資料['5MA_Vol'] = 股價資料['Trading_Volume_Lots'].rolling(5).mean()
-                    
-                    delta = 股價資料['close'].diff()
-                    gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
-                    loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
-                    rs = gain / loss.replace(0, 0.001)
-                    股價資料['RSI'] = 100 - (100 / (1 + rs))
-                    
-                    最新 = 股價資料.iloc[-1]
-                    昨日 = 股價資料.iloc[-2]
-                    最新股價 = 最新['close']
-                    最新5MA = 最新['5MA']
-                    最新RSI = 最新['RSI']
-                    今日張數 = 最新['Trading_Volume_Lots']
-                    今日5MA量 = 最新['5MA_Vol']
-
-                if not 法人資料.empty:
-                    def get_net(df, name):
-                        target = df[df['name'] == name]
-                        return (target['buy'].sum() - target['sell'].sum()) // 1000
-                    外資 = get_net(法人資料, 'Foreign_Investor')
-                    投信 = get_net(法人資料, 'Investment_Trust')
-                    自營 = get_net(法人資料, 'Dealer_self')
-                    權證 = get_net(法人資料, 'Dealer_Hedging')
-                    法人總計 = 外資 + 投信 + 自營 + 權證
-                    總量 = 股價資料['Trading_Volume_Lots'].sum()
-                    籌碼集中度 = (法人總計 / 總量 * 100) if 總量 > 0 else 0
-
-                if not 借券資料.empty:
-                    sbl_最新 = 借券資料.iloc[-1]
-                    最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
-                    今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
-                    借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
-                    還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
-                    連續回補 = 0
-                    for i in range(len(借券資料)-1, -1, -1):
-                        if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
-                            連續回補 += 1
-                        else: break
-
-                if len(融資券資料) >= 2:
-                    今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
-                    融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
-
-                # 4. 網頁視覺化輸出
-                st.markdown("### 📊 大盤即時行情")
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("加權指數", f"{大盤收盤:,.2f}", f"{大盤漲跌:+.2f} ({大盤漲幅:+.2f}%)")
-                m2.metric("成交總量", f"{大盤成交量:.1f} 億")
-                m3.metric("市場融資餘額", f"{大盤融資餘額:.1f} 億", f"{大盤融資變動:+.1f} 億")
-                m4.metric("市場狀態", "偏多" if 大盤收盤 > 盤_昨日['close'] else "整理")
-                
-                st.markdown("---")
-                st.title(f"📈 {股票代號} {股名} 　診斷報告")
-                
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("最新股價", f"{最新股價} 元", f"{最新股價-昨日['close']:.2f}")
-                col2.metric("5MA 均線", f"{最新5MA:.1f}")
-                col3.metric("RSI 指標", f"{最新RSI:.1f}")
-                col4.metric("籌碼集中度", f"{籌碼集中度:.2f}%")
-
-        except Exception as e:
-            # 這裡的 except 必須精確對齊它上面的 try
-            st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+    try:
+        with st.spinner('正在分析數據中...'):
+            # 1. 資料抓取
+            # --- 新增大盤資料抓取 ---
+            大盤股價 = dl.taiwan_stock_daily(stock_id='tse', start_date=str(開始日期), end_date=str(結束日期))
+            大盤信用 = dl.get_data(dataset="TaiwanStockMarginPurchaseShortSale", data_id="Overall", start_date=str(開始日期), end_date=str(結束日期))
+            # --- 注意：以下這幾行必須比 with 縮排 4 個空格 ---
+            個股資訊 = dl.taiwan_stock_info()
+            股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
             
+            法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
+            股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
+            融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
+            借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
+            
+            # 強制抓取過去 365 天的財報，確保一定能抓到最新一季
+            財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
+            基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
+ # 抓取法人買賣超資料 (取最近 30 天以確保有足夠五日數據)
+            法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=開始日期)
+            # --- 預設值初始化 (防止變數未定義報錯) ---
+        借券淨變動 = 0
+        最新借券餘額 = 0
+        連續回補 = 0
+        還券比 = 0  
+        # --- 2. 大盤數據計算 (新增) ---
+            if not 大盤股價.empty:
+                盤_最新 = 大盤股價.iloc[-1]
+                盤_昨日 = 大盤股價.iloc[-2]
+                大盤收盤 = 盤_最新['close']
+                大盤漲跌 = 大盤收盤 - 盤_昨日['close']
+                大盤漲幅 = (大盤漲跌 / 盤_昨日['close']) * 100
+                大盤成交量 = 盤_最新['Trading_Money'] / 100000000 # 換算成億元
+                
+        大盤融資變動 = 0; 大盤融資餘額 = 0
+            if not 大盤信用.empty:
+                信_最新 = 大盤信用.iloc[-1]
+                信_昨日 = 大盤信用.iloc[-2]
+                大盤融資餘額 = 信_最新['MarginPurchaseTodayBalance'] / 100000000 # 億元
+                大盤融資變動 = (信_最新['MarginPurchaseTodayBalance'] - 信_昨日['MarginPurchaseTodayBalance']) / 100000000
+        
+        # --- 3. 核心數據計算 (全面修復與命名統一版) ---
+        
+        # [A] 初始化所有變數 (防止後方報錯)
+        外資 = 0; 投信 = 0; 自營 = 0; 權證 = 0; 籌碼集中度 = 0
+        今日融資變動 = 0; 融券總餘額 = 0
+        最新借券餘額 = 0; 今日還券 = 0; 借券賣出 = 0; 連續回補 = 0; 還券比 = 0
+        最新股價 = 0; 最新5MA = 0; 最新RSI = 0; 今日張數 = 0; 今日5MA量 = 1
+
+        # [B] 股價與技術指標
+        if not 股價資料.empty:
+            股價資料['date'] = pd.to_datetime(股價資料['date'])
+            股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
+            
+            # 自動偵測成交量欄位名稱
+            vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
+            股價資料['Trading_Volume_Lots'] = 股價資料[vol_col] // 1000
+            股價資料['5MA_Vol'] = 股價資料['Trading_Volume_Lots'].rolling(5).mean()
+
+            # RSI 計算 (6日)
+            delta = 股價資料['close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
+            rs = gain / loss.replace(0, 0.001)
+            股價資料['RSI'] = 100 - (100 / (1 + rs))
+
+            # 提取關鍵數值
+            最新 = 股價資料.iloc[-1]
+            昨日 = 股價資料.iloc[-2]
+            最新股價 = 最新['close']
+            最新5MA = 最新['5MA']
+            最新RSI = 最新['RSI']
+            今日張數 = 最新['Trading_Volume_Lots']
+            今日5MA量 = 最新['5MA_Vol']
+            # 定義區間變數以相容舊代碼
+            區間外資 = 0; 區間投信 = 0 # 預設值
+
+        # [C] 法人籌碼計算
+        if not 法人資料.empty:
+            def get_net(df, name):
+                target = df[df['name'] == name]
+                return (target['buy'].sum() - target['sell'].sum()) // 1000
+
+            外資 = get_net(法人資料, 'Foreign_Investor')
+            投信 = get_net(法人資料, 'Investment_Trust')
+            自營 = get_net(法人資料, 'Dealer_self')
+            權證 = get_net(法人資料, 'Dealer_Hedging')
+            
+            # 同步給「區間」開頭的變數，防止舊 UI 報錯
+            區間外資, 區間投信, 區間自營, 區間權證 = 外資, 投信, 自營, 權證
+            
+            法人總計 = 外資 + 投信 + 自營 + 權證
+            總量 = 股價資料['Trading_Volume_Lots'].sum()
+            籌碼集中度 = (法人總計 / 總量 * 100) if 總量 > 0 else 0
+
+        # [D] 借券與信用交易
+        if not 借券資料.empty:
+            sbl_最新 = 借券資料.iloc[-1]
+            最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
+            今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
+            借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
+            還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
+
+            # 計算連續回補
+            for i in range(len(借券資料)-1, -1, -1):
+                if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
+                    連續回補 += 1
+                else: break
+
+        if len(融資券資料) >= 2:
+            今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
+            融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
+        # --- 4. 網頁視覺化輸出 ---
+        st.title(f"📈 {股票代號} {股名} 終極診斷報告")
+        
+        # [新增] 大盤資訊儀表板
+        st.markdown("### 📊 大盤即時行情")
+        m1, m2, m3, m4 = st.columns(4)
+         m1.metric("加權指數", f"{大盤收盤:,.2f}", f"{大盤漲跌:+.2f} ({大盤漲幅:+.2f}%)")
+        m2.metric("成交總量", f"{大盤成交量:.1f} 億")
+        m3.metric("市場融資餘額", f"{大盤融資餘額:.1f} 億", f"{大盤融資變動:+.1f} 億")
+        m4.metric("市場狀態", "偏多" if 大盤收盤 > 盤_最新['close'] else "整理") # 簡單範例邏輯
+                
+        st.write("---") # 分隔線
+                
+        # 原本的個股診斷報告標題
+        st.title(f"📈 {股票代號} {股名} 　診斷報告")
+                
+        # 原本的頂部儀表板
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("最新股價", f"{最新股價} 元", f"{最新股價-昨日['close']:.2f}")
+        col2.metric("5MA 均線", f"{最新5MA:.1f}")
+        col3.metric("RSI 指標", f"{最新RSI:.1f}")
+        col4.metric("籌碼集中度", f"{籌碼集中度:.2f}%")
+
         # 法人與信用
         st.markdown("---")
         c1, c2 = st.columns(2)
@@ -222,13 +248,13 @@ else:
 
             # 2. 顯示文字解析摘要 (包含連續回補燈號)
             status_color = "🟢" if 連續回補 > 0 else "⚪"
-            st.info(f"{status_color} **借券賣出摘要**：目前連續回補 :green[{連續回補}] 天。最新餘額 :green[{最新借券餘額:,.0f}] 張，整體還券力道為 :green[{還券比:.2f}%]。")
+            st.info(f"{status_color} **借券賣出摘要**：目前連續回補 green[{連續回補}] 天。最新餘額 green[{最新借券餘額:,.0f}] 張，整體還券力道為 green[{還券比:.2f}%]。")
 
             # 3. 淨回補動態判斷 (修正語法結構)
             if 今日還券 > 借券賣出:
-                st.success(f"💥 今日「借券賣出」：:green[{借券賣出:,.0f}] 張 | 今日『還券』大於『賣出』，淨回補 :green[{今日還券 - 借券賣出:,.0f}] 張，空頭力量消退中。")
+                st.success(f"💥 今日「借券賣出」：green[{借券賣出:,.0f}] 張 | 今日『還券』大於『賣出』，淨回補 green[{今日還券 - 借券賣出:,.0f}] 張，空頭力量消退中。")
             else:
-                st.error(f"💥 今日「借券賣出」：:green[{借券賣出:,.0f}]張 | 賣出大於還券，法人空方力道仍存。")
+                st.error(f"💥 今日「借券賣出」：green[{借券賣出:,.0f}]張 | 賣出大於還券，法人空方力道仍存。")
         else:
             st.warning("⚠️ 暫無借券資料可供分析。")
         # --- 數據深度拆解說明 (全面升級版) ---
@@ -545,26 +571,8 @@ else:
         except Exception as e:
             st.error(f"建議模組執行失敗：{e}")
 
-# --- 9. AI 投資顧問分析 (專業亮綠 + 適度加大樣式版) ---
+# --- 9. AI 投資顧問分析 (DEBUG 開關：開發時 True，正式環境 False) ---
         DEBUG = False
-        
-        # --- [修正] 註冊專業樣式定義，只套用到 ID: ai-result-box 上 ---
-        st.markdown("""
-            <style>
-            #ai-result-box {
-                background-color: rgba(0, 150, 136, 0.1); /* 半透明深綠/藍底色 */
-                color: #00FFD5 !important; /* 青綠色 (還原) */
-                padding: 20px 25px; /* 內縮空間，讓文字有呼吸感 */
-                border-radius: 12px; /* 圓角 */
-                font-size: 18px !important; /* 適度加大 (原本大約 16px)，不顯突兀 */
-                font-weight: normal; /* 加粗bold，增加清晰度 */
-                line-height: 1.8; /* 加大行距，易於條列閱讀 */
-                border-left: 5px solid #2ECC71; /* 左側綠色直條，增加提示感 */
-                margin-top: 15px; /* 與上方圖表保持距離 */
-            }
-            </style>
-            """, unsafe_allow_html=True)
-
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
@@ -572,13 +580,14 @@ else:
                 models = genai.list_models()
                 available_models = [m.name for m in models]
                 
+                # 1) 只有在 DEBUG=True 時才顯示完整清單
                 if DEBUG:
                     st.write("可用模型：", available_models)
                     for m in models:
                         methods = getattr(m, "supported_generation_methods", None)
                         st.write(m.name, "支援的方法：", methods)
 
-                # 模型選擇邏輯
+                # 2) 模型選擇邏輯：優先 flash-lite → flash → pro
                 model_name = None
                 if "models/gemini-2.5-flash-lite" in available_models:
                     model_name = "models/gemini-2.5-flash-lite"
@@ -587,61 +596,56 @@ else:
                 else:
                     model_name = available_models[0] if available_models else None
 
+                # 3) 若沒模型就提示
                 if not model_name:
                     st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
                 else:
-                    # 顯示連結狀態使用 caption
-                    st.caption(f"🤖 連結模型：{model_name}")
+                    st.write(f"目前使用的模型：{model_name}")
 
                     model = genai.GenerativeModel(model_name)
-                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據，請稍候..."):
-                        
-                        # 定義對齊技術規格的 Prompt (完整保留)
-                        ai_prompt = f"""
-                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據並配合國際總經、地緣風險、產業前景等因素，提供 400 字內的專業投資建議：
-                        股票：{股票代號} {股名}
-                        技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
-                        籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
-                        目前借券餘額：{最新借券餘額} 張。
+                    with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
+                    # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
+                    ai_prompt = f"""
+                    你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據及配合國際總經、中東戰爭、地緣風險及產業前景，提供 400 字內的專業投資建議：
+                    股票：{股票代號} {股名}
+                    技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
+                    籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
+                    目前借券餘額：{最新借券餘額} 張。
 
-                        請直接告訴我：
-                        1. 這檔股票目前的亮點在哪？
-                        2. 最大的風險是什麼？
-                        3. 進出場建議 (買進、加碼、續抱、獲利了結)。
-                        """
+                    請直接告訴我：
+                    1. 這檔股票目前的亮點在哪？
+                    2. 最大的風險是什麼？
+                    3. 進出場建議 (買進、加碼、續抱、獲利了結)。
+                    """
 
-                        try:
-                            model = genai.GenerativeModel(model_name)
-                            response = model.generate_content(ai_prompt)
-                            
-                            text = getattr(response, "text", None)
-                            if not text:
-                                text = getattr(response, "output_text", None) or getattr(response, "output", None)
-                            
-                            if text:
-                                st.markdown("---")
-                                # 這裡的 subheader 可以維持標準樣式
-                                st.subheader("💡 AI 診斷結果")
-                                
-                                # --- [關鍵修正] 套用 HTML 標籤與特定 ID ---
-                                # 此區塊將呈現專業亮綠色、半透明背景、18px 字體，且不影響首頁
-                                st.markdown(f"""
-                                    <div id="ai-result-box">
-                                        {text.replace('\n', '<br>')}
-                                    </div>
-                                """, unsafe_allow_html=True)
-                            else:
-                                st.warning("AI 有回應但無法解析回傳內容。")
-                        except AttributeError as ae:
-                            st.error(f"呼叫模型的方法不存在：{ae}")
-                        except Exception as e:
-                            st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
+                    # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        response = model.generate_content(ai_prompt)
+                        # 取出回傳文字（不同 SDK 版本回傳結構可能不同）
+                        text = getattr(response, "text", None)
+                        if not text:
+                            # 嘗試其他常見欄位
+                            text = getattr(response, "output_text", None) or getattr(response, "output", None)
+                        if text:
+                            st.markdown("---")
+                            st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                        else:
+                            st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
+                    except AttributeError as ae:
+                        st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
+                    except Exception as e:
+                        st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
 
             except Exception as ai_err:
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
-# --- 10. 初始狀態與按鈕修復 (不縮進) ---
+    # --- 關鍵：這是對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
+    except Exception as e:
+        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+
+# --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
 if "股名" not in locals():
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
