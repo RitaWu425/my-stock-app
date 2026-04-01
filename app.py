@@ -103,14 +103,25 @@ else: # 執行診斷 = True
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
 
-            # --- 【除錯補強 2】：修正大盤計算，增加 empty 判定 ---
+            # --- 【修正】：大盤行情與成交量 (億元) ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
                 大盤收盤 = float(大盤最新["close"])
                 大盤漲跌 = float(大盤最新["spread"])
                 前日收盤 = float(大盤資料.iloc[-2]["close"])
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
-                大盤成交量 = int(大盤最新.get("Trading_Volume", 0)) // 1000
+                # 改為顯示成交金額 (億)
+                大盤成交量 = float(大盤最新.get("Trading_Money", 0)) / 1e8
+
+            # --- 【補回】：大盤資券計算區塊 ---
+            if not 融資券總表.empty:
+                最新總表 = 融資券總表.iloc[-1]
+                大盤融資餘額 = int(最新總表.get("MarginPurchaseStockBalance", 0)) // 1000
+                大盤融券餘額 = int(最新總表.get("ShortSaleStockBalance", 0)) // 1000
+                if len(融資券總表) >= 2:
+                    前日總表 = 融資券總表.iloc[-2]
+                    大盤融資增減 = (int(最新總表.get("MarginPurchaseStockBalance", 0)) - int(前日總表.get("MarginPurchaseStockBalance", 0))) // 1000
+                    大盤融券增減 = (int(最新總表.get("ShortSaleStockBalance", 0)) - int(前日總表.get("ShortSaleStockBalance", 0))) // 1000
 
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
@@ -175,7 +186,7 @@ else: # 執行診斷 = True
         row1_col1, row1_col2, row1_col3 = st.columns(3)
         row1_col1.metric("收盤指數", f"{大盤收盤:.2f}", f"{大盤漲跌:.2f}")
         row1_col2.metric("漲跌幅", f"{大盤漲跌幅:.2f}%")
-        row1_col3.metric("總成交量", f"{大盤成交量} 千張")
+        row1_col3.metric("總成交量", f"{大盤成交量:.2f} 億")
 
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
