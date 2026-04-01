@@ -103,7 +103,6 @@ else:
         今日融資變動 = 融券總餘額 = 0
         最新股價 = 最新5MA = 最新RSI = 今日張數 = 今日5MA量 = 0  
         # --- 2. 大盤數據計算 (新增) ---
-            大盤資料 = dl.taiwan_stock_market_summary(start_date=str(開始日期), end_date=str(結束日期))
         if not 大盤資料.empty:
             大盤最新 = 大盤資料.iloc[-1]
             大盤收盤 = 大盤最新['close']
