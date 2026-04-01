@@ -637,14 +637,14 @@ else:
                         except Exception as e:
                             st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
 
-                except Exception as ai_err:
-                    st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
-            else:
-                st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
+            except Exception as ai_err:
+                st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
+        else:
+            st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
-        # --- 關鍵：這是對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
-        except Exception as e:
-            st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+    # --- 關鍵：這是對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
+    except Exception as e:
+        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
 
 # --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
 if "股名" not in locals():
