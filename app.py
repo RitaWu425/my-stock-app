@@ -101,29 +101,36 @@ else:
             # 抓取法人買賣超資料
             法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=開始日期)
 
-            # --- 新的大盤資料抓取 (TWSE OpenAPI) ---
+            # --- 新的大盤資料抓取 (FinMind API) ---
             # 大盤指數
-            index_url = "https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json"
-            index_data = requests.get(index_url).json()
-
-            if "data" in index_data and len(index_data["data"]) > 0:
+            大盤資料 = dl.taiwan_stock_daily(
+                stock_id="TAIEX",
+                start_date=str(開始日期),
+                end_date=str(結束日期)
+            )
+            if not 大盤資料.empty:
                 大盤最新 = index_data[-1]
-                大盤收盤   = float(大盤最新[1]) #收盤指數
-                大盤漲跌   = float(大盤最新[2]) #漲跌
-                大盤漲跌幅 = float(大盤最新[3]) #漲跌幅
-                大盤成交量 = int(大盤最新[4].replace(",", "")) // 1000
+                大盤收盤   = float(大盤最新["close"])
+                大盤漲跌   = float(大盤最新["spread"])
+                前日收盤   = float(大盤資料.iloc[-2]["close"]) if len(大盤資料) >= 2 else 大盤收盤
+                大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
+                大盤成交量 = int(大盤最新["Trading_Volume"]) // 1000
             else:
                 大盤收盤 = 大盤漲跌 = 大盤漲跌幅 = 大盤成交量 = 0
 
             # 融資融券
-            margin_url = "https://www.twse.com.tw/exchangeReport/MI_MARGN?response=json"
-            margin_data = requests.get(margin_url).json()
+            融資券總表 = dl.get_data(
+                dataset="TaiwanMarginPurchaseShortSaleTotal",
+                start_date=str(開始日期),
+                end_date=str(結束日期)
+            )
 
-            if "data" in margin_data and len(margin_data["data"]) > 0:
+            if not 融資券總表.empty:
                 最新 = margin_data["data"][-1]
-                大盤融資餘額 = int(最新[2].replace(",", "")) // 1000
-                前日  = margin_data["data"][-2] if len(margin_data["data"]) >= 2 else 最新
-                大盤融資增減 = (int(最新[2].replace(",", "")) - int(前日[2].replace(",", ""))) // 1000
+                大盤融資餘額 = int(最新["MarginPurchaseBalance"]) // 1000
+                大盤融資增減 = int(最新["MarginPurchaseTodayBalanceChange"]) // 1000
+                大盤融券餘額 = int(最新["ShortSaleBalance"]) // 1000
+                大盤融券增減 = int(最新["ShortSaleTodayBalanceChange"]) // 1000
             else:
                 大盤融資餘額 = 大盤融資增減 = 0
          
@@ -208,19 +215,25 @@ else:
             今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
             融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
         # --- 4. 網頁視覺化輸出 ---
-        st.title(f"📈 {股票代號} {股名} 終極診斷報告")
+        st.title(f"📈 {股票代號} {股名} 分析報告")
         
         # 在頂部儀表板前插入大盤資訊
         st.subheader("📊 大盤資訊")
-        mcol1, mcol2, mcol3, mcol4, mcol5 = st.columns(5)
-        mcol1.metric("收盤指數", f"{大盤收盤:.2f}", f"{大盤漲跌:.2f}")
-        mcol2.metric("漲跌幅", f"{大盤漲跌幅:.2f}%")
-        mcol3.metric("總成交量", f"{大盤成交量} 千張")
-        mcol4.metric("融資增減", f"{大盤融資增減} 張")
-        mcol5.metric("融資餘額", f"{大盤融資餘額} 張")
+        # 第一行：收盤指數、漲跌幅、總成交量
+        row1_col1, row1_col2, row1_col3 = st.columns(3)
+        row1_col1.metric("收盤指數", f"{大盤收盤:.2f}", f"{大盤漲跌:.2f}")
+        row1_col2.metric("漲跌幅", f"{大盤漲跌幅:.2f}%")
+        row1_col3.metric("總成交量", f"{大盤成交量} 千張")
+
+        # 第二行：融資增減、融資餘額、融券增減、融券餘額
+        row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
+        row2_col1.metric("融資增減", f"{大盤融資增減} 張")
+        row2_col2.metric("融資餘額", f"{大盤融資餘額} 張")
+        row2_col3.metric("融券增減", f"{大盤融券增減} 張")
+        row2_col4.metric("融券餘額", f"{大盤融券餘額} 張")
                 
         # --- 原本的個股頂部儀表板 ---
-        st.subheader(f"📈 {股票代號} {股名} 診斷報告")
+        st.subheader(f"📈 {股票代號} {股名} 個股資訊")
         
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("最新股價", f"{最新股價} 元", f"{最新股價-昨日['close']:.2f}")
