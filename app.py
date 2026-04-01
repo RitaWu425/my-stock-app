@@ -73,39 +73,50 @@ if not 執行診斷:
     - **AI 顧問**：基於數據的投資亮點與風險分析。
     """)
 else: # 執行診斷 = True
-    # --- 1. 初始化所有變數 (確保 UI 顯示不報錯) ---
+    # --- 1. 全域變數初始化 (防止 NameError 的核心關鍵) ---
+    # 大盤相關
     大盤收盤 = 大盤漲跌 = 大盤漲幅 = 大盤成交量 = 大盤融資餘額 = 大盤融資變動 = 0.0
-    外資 = 投信 = 自營 = 權證 = 籌碼集中度 = 0
+    盤_最新 = 盤_昨日 = pd.Series()
+    
+    # 法人相關 (統一使用「區間」開頭以相容你的 UI)
+    區間外資 = 區間投信 = 區間自營 = 區間權證 = 籌碼集中度 = 0
+    
+    # 信用與借券相關
     今日融資變動 = 融券總餘額 = 0
     最新借券餘額 = 今日還券 = 借券賣出 = 連續回補 = 還券比 = 0
+    
+    # 個股技術面
     最新股價 = 最新5MA = 最新RSI = 今日張數 = 0
+    昨日 = pd.Series()
     股名 = "未知"
 
     try:
         with st.spinner('🤖 AI 顧問正在同步研讀所有數據...'):
             # --- 2. 資料抓取 ---
-            # 抓取大盤
             大盤股價 = dl.taiwan_stock_daily(stock_id='tse', start_date=str(開始日期), end_date=str(結束日期))
             大盤信用 = dl.get_data(dataset="TaiwanStockMarginPurchaseShortSale", data_id="Overall", start_date=str(開始日期), end_date=str(結束日期))
             
-            # 抓取個股基本資訊
             個股資訊 = dl.taiwan_stock_info()
             match_name = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values
             股名 = match_name[0] if len(match_name) > 0 else "未知"
             
-            # 抓取個股各項指標
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
 
-            # --- 3. 數據運算邏輯 ---
+            # --- 3. 數據運算邏輯 (增加資料長度檢查) ---
             # [大盤計算]
             if not 大盤股價.empty and len(大盤股價) >= 2:
-                p_now, p_pre = 大盤股價.iloc[-1], 大盤股價.iloc[-2]
-                大盤收盤, 大盤漲跌 = p_now['close'], p_now['close'] - p_pre['close']
-                大盤漲幅 = (大盤漲跌 / p_pre['close']) * 100
-                大盤成交量 = p_now.get('Trading_Money', 0) / 1e8
+                盤_最新, 盤_昨日 = 大盤股價.iloc[-1], 大盤股價.iloc[-2]
+                大盤收盤, 大盤漲跌 = 盤_最新['close'], 盤_最新['close'] - 盤_昨日['close']
+                大盤漲幅 = (大盤漲跌 / 盤_昨日['close']) * 100
+                大盤成交量 = 盤_最新.get('Trading_Money', 0) / 1e8
+
+            if not 大盤信用.empty and len(大盤信用) >= 2:
+                信_最新, 信_昨日 = 大盤信用.iloc[-1], 大盤信用.iloc[-2]
+                大盤融資餘額 = 信_最新['MarginPurchaseTodayBalance'] / 1e8
+                大盤融資變動 = (信_最新['MarginPurchaseTodayBalance'] - 信_昨日['MarginPurchaseTodayBalance']) / 1e8
 
             # [個股技術面]
             if not 股價資料.empty and len(股價資料) >= 6:
@@ -119,24 +130,25 @@ else: # 執行診斷 = True
                 l = (-diff.where(diff < 0, 0)).rolling(6).mean()
                 股價資料['RSI'] = 100 - (100 / (1 + (g / l.replace(0, 0.001))))
                 
-                curr = 股價資料.iloc[-1]
+                curr, prev = 股價資料.iloc[-1], 股價資料.iloc[-2]
                 最新股價, 最新5MA, 最新RSI, 今日張數 = curr['close'], curr['5MA'], curr['RSI'], curr['Lots']
+                昨日 = prev
 
-            # [法人籌碼精確計算] - 補回四類別
+            # [法人籌碼精確計算]
             if not 法人資料.empty:
                 def get_net_lots(df, target_name):
                     sub = df[df['name'] == target_name]
                     return (sub['buy'].sum() - sub['sell'].sum()) // 1000
                 
-                外資 = get_net_lots(法人資料, 'Foreign_Investor')
-                投信 = get_net_lots(法人資料, 'Investment_Trust')
-                自營 = get_net_lots(法人資料, 'Dealer_self')
-                權證 = get_net_lots(法人資料, 'Dealer_Hedging')
+                區間外資 = get_net_lots(法人資料, 'Foreign_Investor')
+                區間投信 = get_net_lots(法人資料, 'Investment_Trust')
+                區間自營 = get_net_lots(法人資料, 'Dealer_self')
+                區間權證 = get_net_lots(法人資料, 'Dealer_Hedging')
                 
-                total_vol = 股價資料['Lots'].sum()
-                籌碼集中度 = ((外資 + 投信 + 自營 + 權證) / total_vol * 100) if total_vol > 0 else 0
+                total_vol = 股價資料['Lots'].sum() if not 股價資料.empty else 1
+                籌碼集中度 = ((區間外資 + 區間投信 + 區間自營 + 區間權證) / total_vol * 100)
 
-            # [借券與信用解析] - 完整補回
+            # [借券與信用解析]
             if not 借券資料.empty:
                 s_curr = 借券資料.iloc[-1]
                 最新借券餘額 = s_curr['SBLShortSalesPreviousDayBalance'] // 1000
@@ -144,6 +156,7 @@ else: # 執行診斷 = True
                 借券賣出 = s_curr['SBLShortSalesShortSales'] // 1000
                 還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
                 
+                # 計算連續回補天數
                 for i in range(len(借券資料)-1, -1, -1):
                     if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
                         連續回補 += 1
@@ -153,7 +166,7 @@ else: # 執行診斷 = True
                 今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
                 融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
 
-        # --- 4. 網頁 UI 輸出 (嚴格對齊 else) ---
+        # --- 4. UI 視覺化輸出 (與 with spinner 對齊) ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
         
         # 大盤區
@@ -161,16 +174,24 @@ else: # 執行診斷 = True
         m1, m2, m3 = st.columns(3)
         m1.metric("加權指數", f"{大盤收盤:,.2f}", f"{大盤漲跌:+.2f} ({大盤漲幅:+.2f}%)")
         m2.metric("成交總量", f"{大盤成交量:.1f} 億")
-        m3.metric("市場融資餘額", f"{大盤融資餘額:.1f} 億")
+        m3.metric("市場融資餘額", f"{大盤融資餘額:.1f} 億", f"{大盤融資變動:+.1f} 億")
 
         st.divider()
+
+        # 個股儀表板
+        col1, col2, col3, col4 = st.columns(4)
+        price_diff = 最新股價 - 昨日.get('close', 最新股價)
+        col1.metric("最新股價", f"{最新股價} 元", f"{price_diff:+.2f}")
+        col2.metric("5MA 均線", f"{最新5MA:.2f}")
+        col3.metric("RSI 指標", f"{最新RSI:.1f}")
+        col4.metric("今日成交", f"{今日張數:,.0f} 張")
 
         # 法人與信用區
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("👥 三大法人動向 (張)")
-            st.write(f"外資：:red[{外資:+,d}] | 投信：:red[{投信:+,d}]")
-            st.write(f"自營商：{自營:+,d} | 權證避險：{權證:+,d}")
+            st.write(f"外資：:red[{區間外資:+,d}] | 投信：:red[{區間投信:+,d}]")
+            st.write(f"自營商：{區間自營:+,d} | 權證避險：{區間權證:+,d}")
             st.caption(f"區間籌碼集中度：{籌碼集中度:.2f}%")
         
         with c2:
