@@ -101,9 +101,6 @@ else:
             # 抓取法人買賣超資料
             法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=開始日期)
 
-            # --- 新增大盤資料抓取 (用 TAIEX 當大盤) ---
-            大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
-            大盤融資券 = dl.get_data(dataset="TaiwanMarginPurchaseShortSaleTotal", start_date=str(開始日期), end_date=str(結束日期))
             # --- 新的大盤資料抓取 (TWSE OpenAPI) ---
             # 大盤指數
             index_url = "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX"
