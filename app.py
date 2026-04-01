@@ -38,7 +38,7 @@ dl = init_all()
 st.markdown("""
     <style>
     .stMetric label { font-size: 20px !important; color: #BBBBBB !important; }
-    .stMetric div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold !important; }
+    .stMetric div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: normal !important; }
     .data-label { font-size: 18px; font-weight: bold; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
@@ -102,7 +102,7 @@ else:
 
             # --- 新增大盤資料抓取 (用 TAIEX 當大盤) ---
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
-            大盤融資券 = dl.taiwan_stock_margin_purchase_short_sale(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
+            大盤融資券 = dl.get_data(dataset="TaiwanMarginPurchaseShortSaleTotal", start_date=str(開始日期), end_date=str(結束日期))
 
         # --- 2. 大盤數據計算 ---
         if not 大盤資料.empty and len(大盤資料) >= 2:
@@ -120,8 +120,8 @@ else:
         大盤融資增減 = 0
         大盤融資餘額 = 0
         if not 大盤融資券.empty and len(大盤融資券) >= 2:
-            大盤融資增減 = (大盤融資券.iloc[-1]['MarginPurchaseTodayBalance'] - 大盤融資券.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
-            大盤融資餘額 = 大盤融資券.iloc[-1]['MarginPurchaseTodayBalance'] // 1000
+            大盤融資增減 = (大盤融資券.iloc[-1]['MarginPurchaseBalance'] - 大盤融資券.iloc[-2]['MarginPurchaseBalance']) // 1000
+            大盤融資餘額 = 大盤融資券.iloc[-1]['MarginPurchaseBalance'] // 1000
         
         # --- 預設值初始化 ---
         借券淨變動 = 0
