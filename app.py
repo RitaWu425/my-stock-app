@@ -99,20 +99,20 @@ else:
         連續回補 = 0
         還券比 = 0  
         # --- 2. 大盤數據計算 (新增) ---
-            if not 大盤股價.empty:
-                盤_最新 = 大盤股價.iloc[-1]
-                盤_昨日 = 大盤股價.iloc[-2]
-                大盤收盤 = 盤_最新['close']
-                大盤漲跌 = 大盤收盤 - 盤_昨日['close']
-                大盤漲幅 = (大盤漲跌 / 盤_昨日['close']) * 100
-                大盤成交量 = 盤_最新['Trading_Money'] / 100000000 # 換算成億元
+        if not 大盤股價.empty:
+            盤_最新 = 大盤股價.iloc[-1]
+            盤_昨日 = 大盤股價.iloc[-2]
+            大盤收盤 = 盤_最新['close']
+            大盤漲跌 = 大盤收盤 - 盤_昨日['close']
+            大盤漲幅 = (大盤漲跌 / 盤_昨日['close']) * 100
+            大盤成交量 = 盤_最新['Trading_Money'] / 100000000 # 換算成億元
                 
         大盤融資變動 = 0; 大盤融資餘額 = 0
-            if not 大盤信用.empty:
-                信_最新 = 大盤信用.iloc[-1]
-                信_昨日 = 大盤信用.iloc[-2]
-                大盤融資餘額 = 信_最新['MarginPurchaseTodayBalance'] / 100000000 # 億元
-                大盤融資變動 = (信_最新['MarginPurchaseTodayBalance'] - 信_昨日['MarginPurchaseTodayBalance']) / 100000000
+        if not 大盤信用.empty:
+            信_最新 = 大盤信用.iloc[-1]
+            信_昨日 = 大盤信用.iloc[-2]
+            大盤融資餘額 = 信_最新['MarginPurchaseTodayBalance'] / 100000000 # 億元
+            大盤融資變動 = (信_最新['MarginPurchaseTodayBalance'] - 信_昨日['MarginPurchaseTodayBalance']) / 100000000
         
         # --- 3. 核心數據計算 (全面修復與命名統一版) ---
         
