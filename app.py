@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import requests
 from FinMind.data import DataLoader
 import google.generativeai as genai
 import warnings
@@ -102,27 +103,33 @@ else:
 
             # --- 新增大盤資料抓取 (用 TAIEX 當大盤) ---
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
-            大盤融資券 = dl.get_data(dataset="TaiwanMarginPurchaseShortSaleTotal", start_date=str(開始日期), end_date=str(結束日期))
+            大盤融資券 = dl.get_data(dataset="TaiwanMarginPurchaseShortSaleTotal", start_date=str(開始日期), end_date=str(結束日期)
+            # --- 新的大盤資料抓取 (TWSE OpenAPI) ---
+            # 大盤指數
+            index_url = "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX"
+            index_data = requests.get(index_url).json()
 
-        # --- 2. 大盤數據計算 ---
-        if not 大盤資料.empty and len(大盤資料) >= 2:
-            大盤最新 = 大盤資料.iloc[-1]
-            大盤昨日 = 大盤資料.iloc[-2]
+            if index_data and len(index_data) > 0:
+                大盤最新 = index_data[-1]
+                大盤收盤   = float(大盤最新['Index'])
+                大盤漲跌   = float(大盤最新['Change'])
+                大盤漲跌幅 = float(大盤最新['ChangePercent'])
+                大盤成交量 = int(大盤最新['TradeVolume']) // 1000
+            else:
+                大盤收盤 = 大盤漲跌 = 大盤漲跌幅 = 大盤成交量 = 0
 
-            大盤收盤 = 大盤最新['close']
-            大盤漲跌 = 大盤最新['close'] - 大盤昨日['close']
-            大盤漲跌幅 = (大盤漲跌 / 大盤昨日['close']) * 100
-            vol_col = 'Trading_Volume' if 'Trading_Volume' in 大盤資料.columns else 'volume'
-            大盤成交量 = 大盤最新[vol_col] // 1000  # 換算成千張
-        else:
-            大盤收盤 = 大盤漲跌 = 大盤漲跌幅 = 大盤成交量 = 0
+            # 融資融券
+            margin_url = "https://openapi.twse.com.tw/v1/exchangeReport/MI_MARGN"
+            margin_data = requests.get(margin_url).json()
 
-        大盤融資增減 = 0
-        大盤融資餘額 = 0
-        if not 大盤融資券.empty and len(大盤融資券) >= 2:
-            大盤融資增減 = (大盤融資券.iloc[-1]['MarginPurchaseBalance'] - 大盤融資券.iloc[-2]['MarginPurchaseBalance']) // 1000
-            大盤融資餘額 = 大盤融資券.iloc[-1]['MarginPurchaseBalance'] // 1000
-        
+            if margin_data and len(margin_data) > 0:
+                最新 = margin_data[-1]
+                大盤融資餘額 = int(最新['MarginPurchaseBalance']) // 1000
+                前日 = margin_data[-2] if len(margin_data) >= 2 else 最新
+                大盤融資增減 = (int(最新['MarginPurchaseBalance']) - int(前日['MarginPurchaseBalance'])) // 1000
+            else:
+                大盤融資餘額 = 大盤融資增減 = 0
+         
         # --- 預設值初始化 ---
         借券淨變動 = 0
         最新借券餘額 = 0
@@ -208,13 +215,12 @@ else:
         
         # 在頂部儀表板前插入大盤資訊
         st.subheader("📊 大盤資訊")
-        mcol1, mcol2, mcol3, mcol4, mcol5, mcol6 = st.columns(6)
+        mcol1, mcol2, mcol3, mcol4, mcol5 = st.columns(5)
         mcol1.metric("收盤指數", f"{大盤收盤:.2f}", f"{大盤漲跌:.2f}")
         mcol2.metric("漲跌幅", f"{大盤漲跌幅:.2f}%")
         mcol3.metric("總成交量", f"{大盤成交量} 千張")
         mcol4.metric("融資增減", f"{大盤融資增減} 張")
         mcol5.metric("融資餘額", f"{大盤融資餘額} 張")
-        mcol6.metric("漲跌數", f"{大盤漲跌:.2f}")
                 
         # --- 原本的個股頂部儀表板 ---
         st.subheader(f"📈 {股票代號} {股名} 診斷報告")
