@@ -106,12 +106,12 @@ else:
             index_url = "https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json"
             index_data = requests.get(index_url).json()
 
-            if index_data and len(index_data) > 0:
+            if "data" in index_data and len(index_data["data"]) > 0:
                 大盤最新 = index_data[-1]
-                大盤收盤   = float(大盤最新['Index'])
-                大盤漲跌   = float(大盤最新['Change'])
-                大盤漲跌幅 = float(大盤最新['ChangePercent'])
-                大盤成交量 = int(大盤最新['TradeVolume']) // 1000
+                大盤收盤   = float(大盤最新[1]) #收盤指數
+                大盤漲跌   = float(大盤最新[2]) #漲跌
+                大盤漲跌幅 = float(大盤最新[3]) #漲跌幅
+                大盤成交量 = int(大盤最新[4].replace(",","") // 1000
             else:
                 大盤收盤 = 大盤漲跌 = 大盤漲跌幅 = 大盤成交量 = 0
 
@@ -119,11 +119,11 @@ else:
             margin_url = "https://www.twse.com.tw/exchangeReport/MI_MARGN?response=json"
             margin_data = requests.get(margin_url).json()
 
-            if margin_data and len(margin_data) > 0:
-                最新 = margin_data[-1]
-                大盤融資餘額 = int(最新['MarginPurchaseBalance']) // 1000
-                前日 = margin_data[-2] if len(margin_data) >= 2 else 最新
-                大盤融資增減 = (int(最新['MarginPurchaseBalance']) - int(前日['MarginPurchaseBalance'])) // 1000
+            if "data" in margin_data and len(margin_data["data"]) > 0:
+                最新 = margin_data["data"][-1]
+                大盤融資餘額 = int(最新[2].replace(",", "")) // 1000
+                前日  = margin_data["data"][-2] if len(margin_data["data"]) >= 2 else 最新
+                大盤融資增減 = (int(最新[2].replace(",", "")) - int(前日[2].replace(",", ""))) // 1000
             else:
                 大盤融資餘額 = 大盤融資增減 = 0
          
