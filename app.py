@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import requests
-import certifi
 from FinMind.data import DataLoader
 import google.generativeai as genai
 import warnings
@@ -104,8 +103,8 @@ else:
 
             # --- 新的大盤資料抓取 (TWSE OpenAPI) ---
             # 大盤指數
-            index_url = "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX"
-            index_data = requests.get(index_url, verify=certifi.where()).json()
+            index_url = "https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json"
+            index_data = requests.get(index_url).json()
 
             if index_data and len(index_data) > 0:
                 大盤最新 = index_data[-1]
@@ -117,8 +116,8 @@ else:
                 大盤收盤 = 大盤漲跌 = 大盤漲跌幅 = 大盤成交量 = 0
 
             # 融資融券
-            margin_url = "https://openapi.twse.com.tw/v1/exchangeReport/MI_MARGN"
-            margin_data = requests.get(margin_url, verify=certifi.where()).json()
+            margin_url = "https://www.twse.com.tw/exchangeReport/MI_MARGN?response=json"
+            margin_data = requests.get(margin_url).json()
 
             if margin_data and len(margin_data) > 0:
                 最新 = margin_data[-1]
