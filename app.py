@@ -102,6 +102,7 @@ else: # 執行診斷 = True
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
+            融資券總表 = dl.get_data(dataset="TaiwanMarginPurchaseShortSaleTotal", start_date=str(開始日期), end_date=str(結束日期))
 
             # --- 【修正】：大盤行情與成交量 (億元) ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
