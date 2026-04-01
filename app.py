@@ -72,8 +72,8 @@ if not 執行診斷:
     - **技術面**：5MA 趨勢、RSI 強弱指標。
     - **AI 顧問**：基於數據的投資亮點與風險分析。
     """)
-else: # 執行診斷 = True
-    # --- 1. 初始化所有變數 (確保 UI 顯示不報錯) ---
+else:
+    # --- [修正 1]：初始化放在最前面，確保 UI 不會因為計算失敗而報 name defined 錯誤 ---
     外資 = 投信 = 自營 = 權證 = 籌碼集中度 = 0
     區間外資 = 區間投信 = 區間自營 = 區間權證 = 0
     今日融資變動 = 融券總餘額 = 0
@@ -86,35 +86,35 @@ else: # 執行診斷 = True
 
     try:
         with st.spinner('正在分析數據中...'):
-            # --- 2. 資料抓取 ---
+            # 1. 資料抓取
             個股資訊 = dl.taiwan_stock_info()
             try:
                 股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
             except: 股名 = "未知股票"
             
+            # 抓取各項資料表
             法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             
-            # 大盤行情與資券總表
+            # 大盤行情與大盤融資券總表 (FinMind 專用 dataset)
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
             融資券總表 = dl.get_data(dataset="TaiwanMarginPurchaseShortSaleTotal", start_date=str(開始日期), end_date=str(結束日期))
 
-            # --- 3. 數據運算 (增加空值保護) ---
-            
-            # [A] 大盤行情計算 (成交量改為億元)
+            # --- [修正 2]：大盤數據計算 (含成交量億元化) ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
                 大盤收盤 = float(大盤最新["close"])
                 大盤漲跌 = float(大盤最新["spread"])
                 前日收盤 = float(大盤資料.iloc[-2]["close"])
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
-                # 改為顯示成交金額 (單位：億)
+                # 將 Trading_Money 轉換為億元
                 大盤成交量 = float(大盤最新.get("Trading_Money", 0)) / 1e8
 
-            # [B] 大盤資券總表計算 (補回缺失區塊)
+            # --- [修正 3]：大盤資券計算 (補回漏掉的區塊) ---
             if not 融資券總表.empty:
+                # 欄位名稱對齊 FinMind 大盤總表格式
                 最新總表 = 融資券總表.iloc[-1]
                 大盤融資餘額 = int(最新總表.get("MarginPurchaseStockBalance", 0)) // 1000
                 大盤融券餘額 = int(最新總表.get("ShortSaleStockBalance", 0)) // 1000
@@ -123,8 +123,9 @@ else: # 執行診斷 = True
                     大盤融資增減 = (int(最新總表.get("MarginPurchaseStockBalance", 0)) - int(前日總表.get("MarginPurchaseStockBalance", 0))) // 1000
                     大盤融券增減 = (int(最新總表.get("ShortSaleStockBalance", 0)) - int(前日總表.get("ShortSaleStockBalance", 0))) // 1000
 
-            # [C] 個股技術指標
+            # --- [修正 4]：個股技術指標 (加入安全性判斷，避免 'data' 錯誤) ---
             if not 股價資料.empty and len(股價資料) >= 2:
+                # 確保日期格式
                 if 'date' in 股價資料.columns:
                     股價資料['date'] = pd.to_datetime(股價資料['date'])
                 
@@ -144,7 +145,7 @@ else: # 執行診斷 = True
                 最新股價, 最新5MA, 最新RSI = 最新['close'], 最新['5MA'], 最新['RSI']
                 今日張數, 今日5MA量 = 最新['Lots'], 最新['5MA_Vol']
 
-            # [D] 法人籌碼
+            # --- [修正 5]：法人籌碼與個股資券 ---
             if not 法人資料.empty:
                 def get_net(df, name):
                     target = df[df['name'] == name]
@@ -157,11 +158,11 @@ else: # 執行診斷 = True
                 總量 = 股價資料['Lots'].sum() if not 股價資料.empty else 1
                 籌碼集中度 = ((區間外資 + 區間投信 + 區間自營 + 區間權證) / 總量 * 100)
 
-            # [E] 個股資券與借券
             if not 借券資料.empty:
                 sbl = 借券資料.iloc[-1]
-                最新借券餘額 = sbl['SBLShortSalesPreviousDayBalance'] // 1000
-                今日還券, 借券賣出 = sbl['SBLShortSalesReturns'] // 1000, sbl['SBLShortSalesShortSales'] // 1000
+                最新借券餘額 = sbl.get('SBLShortSalesPreviousDayBalance', 0) // 1000
+                今日還券 = sbl.get('SBLShortSalesReturns', 0) // 1000
+                借券賣出 = sbl.get('SBLShortSalesShortSales', 0) // 1000
                 還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
                 for i in range(len(借券資料)-1, -1, -1):
                     if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
@@ -171,9 +172,6 @@ else: # 執行診斷 = True
             if not 融資券資料.empty and len(融資券資料) >= 2:
                 今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
                 融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
-
-    except Exception as e:
-        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
 
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
