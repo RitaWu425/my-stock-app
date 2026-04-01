@@ -75,12 +75,10 @@ if not 執行診斷:
 else:
         try:
             with st.spinner('正在分析數據中...'):
-                # 1. 資料抓取
-                # --- 新增大盤資料抓取 ---
+                # 1. 資料抓取 (大盤 + 個股)
                 大盤股價 = dl.taiwan_stock_daily(stock_id='tse', start_date=str(開始日期), end_date=str(結束日期))
                 大盤信用 = dl.get_data(dataset="TaiwanStockMarginPurchaseShortSale", data_id="Overall", start_date=str(開始日期), end_date=str(結束日期))
                 
-                # --- 原本的個股資料抓取 ---
                 個股資訊 = dl.taiwan_stock_info()
                 股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
                 法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
@@ -91,7 +89,7 @@ else:
                 財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
                 基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
 
-                # --- 2. 大盤數據計算 ---
+                # 2. 大盤數據計算
                 大盤收盤 = 0; 大盤漲跌 = 0; 大盤漲幅 = 0; 大盤成交量 = 0
                 if not 大盤股價.empty:
                     盤_最新 = 大盤股價.iloc[-1]
@@ -108,50 +106,81 @@ else:
                     大盤融資餘額 = 信_最新['MarginPurchaseTodayBalance'] / 100000000 
                     大盤融資變動 = (信_最新['MarginPurchaseTodayBalance'] - 信_昨日['MarginPurchaseTodayBalance']) / 100000000
 
-                # --- 3. 核心數據計算 (個股部分) ---
-            # (這裡維持你原本的計算邏輯，確保變數名稱正確)
-            if not 股價資料.empty:
-                # ... (中間的 RSI 與 5MA 計算省略，請保留你原本的內容)
-                最新 = 股價資料.iloc[-1]
-                昨日 = 股價資料.iloc[-2]
-                最新股價 = 最新['close']
-                最新5MA = 最新['5MA']
-                最新RSI = 最新['RSI']
-                今日張數 = 最新['Trading_Volume_Lots']
-                今日5MA量 = 最新['5MA_Vol']
+                # 3. 核心數據計算 (個股部分)
+                外資 = 0; 投信 = 0; 自營 = 0; 權證 = 0; 籌碼集中度 = 0
+                今日融資變動 = 0; 融券總餘額 = 0
+                最新借券餘額 = 0; 今日還券 = 0; 借券賣出 = 0; 連續回補 = 0; 還券比 = 0
+                最新股價 = 0; 最新5MA = 0; 最新RSI = 0; 今日張數 = 0; 今日5MA量 = 1
 
-            # --- 4. 網頁視覺化輸出 (關鍵對齊區) ---
-            # 確保以下所有 st. 開頭的程式碼，都跟上面的「個股資訊 = ...」縮排對齊
-            
-            # [A] 大盤資訊儀表板
-            st.markdown("### 📊 大盤即時行情")
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("加權指數", f"{大盤收盤:,.2f}", f"{大盤漲跌:+.2f} ({大盤漲幅:+.2f}%)")
-            m2.metric("成交總量", f"{大盤成交量:.1f} 億")
-            m3.metric("市場融資餘額", f"{大盤融資餘額:.1f} 億", f"{大盤融資變動:+.1f} 億")
-            m4.metric("市場狀態", "偏多" if 大盤收盤 > 盤_昨日['close'] else "整理")
-            
-            st.markdown("---") # 分隔線
-            
-            # [B] 個股診斷報告標題
-            st.title(f"📈 {股票代號} {股名} 　診斷報告")
-            
-            # [C] 個股頂部儀表板
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("最新股價", f"{最新股價} 元", f"{最新股價-昨日['close']:.2f}")
-            col2.metric("5MA 均線", f"{最新5MA:.1f}")
-            col3.metric("RSI 指標", f"{最新RSI:.1f}")
-            col4.metric("籌碼集中度", f"{籌碼集中度:.2f}%")
+                if not 股價資料.empty:
+                    股價資料['date'] = pd.to_datetime(股價資料['date'])
+                    股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
+                    vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
+                    股價資料['Trading_Volume_Lots'] = 股價資料[vol_col] // 1000
+                    股價資料['5MA_Vol'] = 股價資料['Trading_Volume_Lots'].rolling(5).mean()
+                    
+                    delta = 股價資料['close'].diff()
+                    gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
+                    loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
+                    rs = gain / loss.replace(0, 0.001)
+                    股價資料['RSI'] = 100 - (100 / (1 + rs))
+                    
+                    最新 = 股價資料.iloc[-1]
+                    昨日 = 股價資料.iloc[-2]
+                    最新股價 = 最新['close']
+                    最新5MA = 最新['5MA']
+                    最新RSI = 最新['RSI']
+                    今日張數 = 最新['Trading_Volume_Lots']
+                    今日5MA量 = 最新['5MA_Vol']
 
-        # --- 這裡結束 with st.spinner ---
+                if not 法人資料.empty:
+                    def get_net(df, name):
+                        target = df[df['name'] == name]
+                        return (target['buy'].sum() - target['sell'].sum()) // 1000
+                    外資 = get_net(法人資料, 'Foreign_Investor')
+                    投信 = get_net(法人資料, 'Investment_Trust')
+                    自營 = get_net(法人資料, 'Dealer_self')
+                    權證 = get_net(法人資料, 'Dealer_Hedging')
+                    法人總計 = 外資 + 投信 + 自營 + 權證
+                    總量 = 股價資料['Trading_Volume_Lots'].sum()
+                    籌碼集中度 = (法人總計 / 總量 * 100) if 總量 > 0 else 0
 
-    except Exception as e:
-        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+                if not 借券資料.empty:
+                    sbl_最新 = 借券資料.iloc[-1]
+                    最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
+                    今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
+                    借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
+                    還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
+                    連續回補 = 0
+                    for i in range(len(借券資料)-1, -1, -1):
+                        if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
+                            連續回補 += 1
+                        else: break
 
-# --- 10. 初始狀態與按鈕修復 (不縮進) ---
-if "股名" not in locals():
-    st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
+                if len(融資券資料) >= 2:
+                    今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
+                    融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
 
+                # 4. 網頁視覺化輸出
+                st.markdown("### 📊 大盤即時行情")
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("加權指數", f"{大盤收盤:,.2f}", f"{大盤漲跌:+.2f} ({大盤漲幅:+.2f}%)")
+                m2.metric("成交總量", f"{大盤成交量:.1f} 億")
+                m3.metric("市場融資餘額", f"{大盤融資餘額:.1f} 億", f"{大盤融資變動:+.1f} 億")
+                m4.metric("市場狀態", "偏多" if 大盤收盤 > 盤_昨日['close'] else "整理")
+                
+                st.markdown("---")
+                st.title(f"📈 {股票代號} {股名} 　診斷報告")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("最新股價", f"{最新股價} 元", f"{最新股價-昨日['close']:.2f}")
+                col2.metric("5MA 均線", f"{最新5MA:.1f}")
+                col3.metric("RSI 指標", f"{最新RSI:.1f}")
+                col4.metric("籌碼集中度", f"{籌碼集中度:.2f}%")
+
+        except Exception as e:
+            # 這裡的 except 必須精確對齊它上面的 try
+            st.error(f"❌ 診斷過程發生重大錯誤：{e}")
         # 法人與信用
         st.markdown("---")
         c1, c2 = st.columns(2)
