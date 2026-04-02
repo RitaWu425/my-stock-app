@@ -114,9 +114,9 @@ else: # 執行診斷 = True
             start_date=str(開始日期), 
             end_date=str(結束日期)
             )
-            st.write("--- 融資券總表 原始資料 ---")
-            st.write("Columns:", 融資券總表.columns.tolist())
-            st.write("Tail:", 融資券總表.tail())
+            st.write("--- 融資餘額總表 原始資料 ---")
+            st.write("Columns:", 融資餘額總表.columns.tolist())
+            st.write("Tail:", 融資餘額總表.tail())
             # --- 【除錯補強 2】：修正大盤計算，增加 empty 判定 ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
