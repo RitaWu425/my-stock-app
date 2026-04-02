@@ -74,6 +74,8 @@ if not 執行診斷:
     """
 )
 else: # 執行診斷 = True
+    DEBUG = False # Set to True to show debug info, False to hide
+
     # --- 【除錯補強 1】：在 try 開始前強制初始化所有顯示變數，防止 NameError ---
     # 這樣即使下方抓資料失敗，變數依然存在，不會出現 '今日5MA量' is not defined
     外資 = 投信 = 自營 = 權證 = 籌碼集中度 = 0
@@ -105,18 +107,20 @@ else: # 執行診斷 = True
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
 
             # Debug print for 大盤資料 (Moved to st.write for Streamlit visibility)
-            st.write("--- 大盤資料 (TAIEX) 原始資料 ---")
-            st.write("Columns:", 大盤資料.columns.tolist())
-            st.write("Tail:", 大盤資料.tail())
+            if DEBUG:
+                st.write("--- 大盤資料 (TAIEX) 原始資料 ---")
+                st.write("Columns:", 大盤資料.columns.tolist())
+                st.write("Tail:", 大盤資料.tail())
 
             # 新增：大盤融資融券資料
             融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
             start_date=str(開始日期),
             end_date=str(結束日期)
             )
-            st.write("--- 融資券總表 原始資料 ---")
-            st.write("Columns:", 融資券總表.columns.tolist())
-            st.write("Tail:", 融資券總表.tail())
+            if DEBUG:
+                st.write("--- 融資券總表 原始資料 ---")
+                st.write("Columns:", 融資券總表.columns.tolist())
+                st.write("Tail:", 融資券總表.tail())
             # --- 【除錯補強 2】：修正大盤計算，增加 empty 判定 ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
@@ -149,16 +153,18 @@ else: # 執行診斷 = True
                 # Calculate user-requested metrics
                 # 融資餘額 (MarginPurchaseMoney TodayBalance) in millions (億元)
                 # 1 億元 = 100,000,000 元
-                大盤融資餘額 = mp_money_today / 10000000.0
+                大盤融資餘額 = mp_money_today / 100000.0 # From 仟元 to 億元 (1000 * 100000 = 1億)
 
                 # 融資增減 (MarginPurchaseMoney TodayBalance – MarginPurchaseMoney YesBalance) in millions (億元)
-                大盤融資增減 = (mp_money_today - mp_money_yes) / 10000000.0
+                大盤融資增減 = (mp_money_today - mp_money_yes) / 100000.0 # From 仟元 to 億元
 
                 # 融券餘額 (ShortSale TodayBalance) in thousands of shares (張)
-                大盤融券餘額 = ss_today
+                # 更正：FinMind的ShortSale TodayBalance單位就是張，不需再除以1000
+                大盤融券餘額 = ss_today # 原始單位即為「張」
 
                 # 融券增減 (ShortSale TodayBalance – ShortSale YesBalance) in thousands of shares (張)
-                大盤融券增減 = (ss_today - ss_yes)
+                # 更正：FinMind的ShortSale TodayBalance單位就是張，不需再除以1000
+                大盤融券增減 = (ss_today - ss_yes) # 原始單位即為「張」
 
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
@@ -216,8 +222,9 @@ else: # 執行診斷 = True
                         break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
-                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance'])
-                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance']
+                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
+                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
+
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
 
@@ -232,7 +239,7 @@ else: # 執行診斷 = True
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         mc4, mc5, mc6, mc7 = st.columns(4)
         mc4.metric("融資增減", f"{大盤融資增減:+.2f} 億")
-        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 億")
+        mc5.metric("融資餘額", f"{大盤融資餘額:,.2f} 億")
         mc6.metric("融券增減", f"{大盤融券增減:+,d} 張")
         mc7.metric("融券餘額", f"{大盤融券餘額:,.0f} 張")
 
@@ -609,7 +616,6 @@ else: # 執行診斷 = True
             st.error(f"建議模組執行失敗：{e}")
 
 # --- 9. AI 投資顧問分析 (DEBUG 開關：開發時 True，正式環境 False) ---
-        DEBUG = False
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
@@ -631,7 +637,8 @@ else: # 執行診斷 = True
                 elif "models/gemini-2.5-flash" in available_models:
                     model_name = "models/gemini-2.5-flash"
                 else:
-                    model_name = available_models[0] if available_models else None
+                    model = genai.GenerativeModel('gemini-pro') # Fallback to gemini-pro if other models not available
+                    model_name = 'gemini-pro'
 
                 # 3) 若沒模型就提示
                 if not model_name:
@@ -679,7 +686,6 @@ else: # 執行診斷 = True
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
 
-    # --- 關鍵：這是對齊最前面資料抓取區 try 的大 except (縮進 4 格) ---
     except Exception as e:
         st.error(f"❌ 診斷過程發生重大錯誤：{e}")
 
