@@ -131,8 +131,8 @@ else: # 執行診斷 = True
                 # 使用大盤專用欄位名
                 大盤融資餘額 = int(融資餘額總表.get("TodayBalance", 0)) // 1e8 # Corrected column name
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
-                前日餘額 = 融資券總表.iloc[-2]
-                大盤融資增減 = (融資券總表.iloc[-1]['TodayBalance'] - 融資券總表.iloc[-2]['YesBalance']) // 1e8 # Corrected column name
+                前日餘額 = 融資餘額總表.iloc[-2]
+                大盤融資增減 = (融資餘額總表.iloc[-1]['TodayBalance'] - 融資餘額總表.iloc[-2]['YesBalance']) // 1e8 # Corrected column name
                 大盤融券增減 = (int(最新總表.get("ShortSaleTodayBalance", 0)) - int(最新總表.get("ShortSaleYesBalance", 0))) // 1000 # Corrected column name
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
