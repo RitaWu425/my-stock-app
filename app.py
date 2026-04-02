@@ -39,7 +39,7 @@ st.markdown("""
     <style>
     .stMetric label { font-size: 20px !important; color: #BBBBBB !important; }
     .stMetric div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: normal !important; }
-    .data-label { font-size: 18px; font-weight: bold; color: #FFFFFF; margin-bottom: 5px; }
+    .data-label { font-size: 18px; font-weight: normal; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
     .val-neu { font-size: 22px; font-weight: bold; color: #FFFFFF; }
@@ -195,7 +195,6 @@ else: # 執行診斷 = True
         st.title(f"📈 {股票代號} {股名} 分析報告")
         
         # 在頂部儀表板前插入大盤資訊
-        st.subheader("📊 大盤資訊")
         # 第一行：收盤指數、漲跌幅、總成交量
         st.subheader("📊 大盤資訊")
         mc1, mc2, mc3 = st.columns(3)
