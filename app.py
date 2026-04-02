@@ -193,8 +193,8 @@ else: # 執行診斷 = True
                         break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
-                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance'])  
-                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance']  
+                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) 
+                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] 
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
 
@@ -208,8 +208,8 @@ else: # 執行診斷 = True
 
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         mc4, mc5, mc6, mc7 = st.columns(4)
-        mc4.metric("融資增減", f"{大盤融資增減:+,d} 張")
-        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 張")
+        mc4.metric("融資增減", f"{大盤融資增減:+,d} 億")
+        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 億")
         mc6.metric("融券增減", f"{大盤融券增減:+,d} 張")
         mc7.metric("融券餘額", f"{大盤融券餘額:,.0f} 張")
 
