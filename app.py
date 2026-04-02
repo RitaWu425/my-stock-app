@@ -153,10 +153,10 @@ else: # 執行診斷 = True
                 # Calculate user-requested metrics
                 # 融資餘額 (MarginPurchaseMoney TodayBalance) in millions (億元)
                 # 1 億元 = 100,000,000 元
-                大盤融資餘額 = mp_money_today / 100000.0 # From 仟元 to 億元 (1000 * 100000 = 1億)
+                大盤融資餘額 = mp_money_today / 100000000.0 
 
                 # 融資增減 (MarginPurchaseMoney TodayBalance – MarginPurchaseMoney YesBalance) in millions (億元)
-                大盤融資增減 = (mp_money_today - mp_money_yes) / 100000.0 # From 仟元 to 億元
+                大盤融資增減 = (mp_money_today - mp_money_yes) / 100000000.0 
 
                 # 融券餘額 (ShortSale TodayBalance) in thousands of shares (張)
                 # 更正：FinMind的ShortSale TodayBalance單位就是張，不需再除以1000
@@ -222,8 +222,8 @@ else: # 執行診斷 = True
                         break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
-                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
-                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
+                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance'])
+                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance']
 
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
@@ -234,7 +234,7 @@ else: # 執行診斷 = True
         mc1, mc2, mc3 = st.columns(3)
         mc1.metric("加權指數", f"{大盤收盤:,.2f}", f"{大盤漲跌:+.2f}")
         mc2.metric("漲跌幅", f"{大盤漲跌幅:+.2f}%")
-        mc3.metric("總成交量", f"{大盤成交量:.2f} 億")
+        mc3.metric("總成交量", f"{大盤成交量:,.2f} 億")
 
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         mc4, mc5, mc6, mc7 = st.columns(4)
