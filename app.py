@@ -42,7 +42,7 @@ st.markdown("""
     .data-label { font-size: 18px; font-weight: normal; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
-    .val-neu { font-size: 22px; font-weight: bold; color: #FFFFFF; }
+    .val-neu { font-size: 22px; font_weight: bold; color: #FFFFFF; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -108,7 +108,7 @@ else: # 執行診斷 = True
             st.write("--- 大盤資料 (TAIEX) 原始資料 ---")
             st.write("Columns:", 大盤資料.columns.tolist())
             st.write("Tail:", 大盤資料.tail())
-            
+
             # 新增：大盤融資融券資料
             融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
             start_date=str(開始日期), 
@@ -124,17 +124,17 @@ else: # 執行診斷 = True
                 大盤漲跌 = float(大盤最新["spread"])
                 前日收盤 = float(大盤資料.iloc[-2]["close"])
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
-                大盤成交量 = float(大盤最新.get("Trading_Money", 0)) / 1e8
+                大盤成交量 = float(大盤最新.get("Trading_money", 0)) / 1e8 # Corrected column name
             # [B] 大盤資券補回
             if not 融資券總表.empty:
                 最新總表 = 融資券總表.iloc[-1]
                 # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("MarginPurchaseStockBalance", 0)) // 1000
-                大盤融券餘額 = int(最新總表.get("ShortSaleStockBalance", 0)) // 1000
+                大盤融資餘額 = int(最新總表.get("Balance", 0)) // 1000 # Corrected column name
+                大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
                 if len(融資券總表) >= 2:
                     前日總表 = 融資券總表.iloc[-2]
-                    大盤融資增減 = (int(最新總表.get("MarginPurchaseStockBalance", 0)) - int(前日總表.get("MarginPurchaseStockBalance", 0))) // 1000
-                    大盤融券增減 = (int(最新總表.get("ShortSaleStockBalance", 0)) - int(前日總表.get("ShortSaleStockBalance", 0))) // 1000
+                    大盤融資增減 = (int(最新總表.get("Balance", 0)) - int(前日總表.get("Balance", 0))) // 1000 # Corrected column name
+                    大盤融券增減 = (int(最新總表.get("ShortSale", 0)) - int(前日總表.get("ShortSale", 0))) // 1000 # Corrected column name
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
