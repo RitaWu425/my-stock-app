@@ -115,7 +115,16 @@ else: # 執行診斷 = True
                 前日收盤 = float(大盤資料.iloc[-2]["close"])
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
                 大盤成交量 = float(大盤最新.get("Trading_Money", 0)) / 1e8
-
+            # [B] 大盤資券補回
+            if not 融資券總表.empty:
+                最新總表 = 融資券總表.iloc[-1]
+                # 使用大盤專用欄位名
+                大盤融資餘額 = int(最新總表.get("MarginPurchaseStockBalance", 0)) // 1000
+                大盤融券餘額 = int(最新總表.get("ShortSaleStockBalance", 0)) // 1000
+                if len(融資券總表) >= 2:
+                    前日總表 = 融資券總表.iloc[-2]
+                    大盤融資增減 = (int(最新總表.get("MarginPurchaseStockBalance", 0)) - int(前日總表.get("MarginPurchaseStockBalance", 0))) // 1000
+                    大盤融券增減 = (int(最新總表.get("ShortSaleStockBalance", 0)) - int(前日總表.get("ShortSaleStockBalance", 0))) // 1000
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
