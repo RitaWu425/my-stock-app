@@ -109,14 +109,14 @@ else: # 執行診斷 = True
             st.write("Columns:", 大盤資料.columns.tolist())
             st.write("Tail:", 大盤資料.tail())
 
-            # 新增：大盤融資融券資料
-            融資餘額總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
-            start_date=str(開始日期), 
+                        # 新增：大盤融資融券資料
+            融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
+            start_date=str(開始日期),
             end_date=str(結束日期)
             )
-            st.write("--- 融資餘額總表 原始資料 ---")
-            st.write("Columns:", 融資餘額總表.columns.tolist())
-            st.write("Tail:", 融資餘額總表.tail())
+            st.write("--- 融資券總表 原始資料 ---")
+            st.write("Columns:", 融資券總表.columns.tolist())
+            st.write("Tail:", 融資券總表.tail())
             # --- 【除錯補強 2】：修正大盤計算，增加 empty 判定 ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
@@ -126,14 +126,17 @@ else: # 執行診斷 = True
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
                 大盤成交量 = float(大盤最新.get("Trading_money", 0)) / 1e8 # Corrected column name
             # [B] 大盤資券補回
-            if not 融資餘額總表.empty and len(融資餘額總表) >= 2:
-                最新總表 = 融資餘額總表.iloc[-1]
+            if not 融資券總表.empty:
+                最新總表 = 融資券總表.iloc[-1]
                 # 使用大盤專用欄位名
-                大盤融資餘額 = int(融資餘額總表.get("TodayBalance", 0)) // 1e8 # Corrected column name
+                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1000 # Corrected column name based on user feedback
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
-                前日餘額 = 融資餘額總表.iloc[-2]
-                大盤融資增減 = (int(融資餘額總表.get("TodayBalance", 0)) - int(融資餘額總表.get("YesBalance", 0))) // 1000 # Corrected column name
-                大盤融券增減 = (int(最新總表.get("ShortSaleTodayBalance", 0)) - int(最新總表.get("ShortSaleYesBalance", 0))) // 1000 # Corrected column name
+                # Use TodayBalance - YesBalance for 大盤融資增減
+                大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1000
+                if len(融資券總表) >= 2:
+                    前日總表 = 融資券總表.iloc[-2]
+                    # Assuming ShortSale has similar Today/Yes balance, but user didn't specify. Keep as-is for now.
+                    大盤融券增減 = (int(最新總表.get("ShortSale", 0)) - int(前日總表.get("ShortSale", 0))) // 1000 # Corrected column name
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
