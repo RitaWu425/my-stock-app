@@ -127,16 +127,39 @@ else: # 執行診斷 = True
                 大盤成交量 = float(大盤最新.get("Trading_money", 0)) / 1e8 # Corrected column name
             # [B] 大盤資券補回
             if not 融資券總表.empty:
-                最新總表 = 融資券總表.iloc[-1]
-                # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1000 # Corrected column name based on user feedback
-                大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
-                # Use TodayBalance - YesBalance for 大盤融資增減
-                大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1000
-                if len(融資券總表) >= 2:
-                    前日總表 = 融資券總表.iloc[-2]
-                    # Assuming ShortSale has similar Today/Yes balance, but user didn't specify. Keep as-is for now.
-                    大盤融券增減 = (int(最新總表.get("ShortSale", 0)) - int(前日總表.get("ShortSale", 0))) // 1000 # Corrected column name
+                # Get the latest date available in the DataFrame
+                latest_date = 融資券總表['date'].max()
+                latest_data = 融資券總表[融資券總表['date'] == latest_date]
+
+                # Initialize variables to avoid NameError if specific names are not found
+                mp_money_today = mp_money_yes = ss_today = ss_yes = 0.0
+
+                # Extract data for MarginPurchaseMoney
+                mp_money_row = latest_data[latest_data['name'] == 'MarginPurchaseMoney']
+                if not mp_money_row.empty:
+                    mp_money_today = mp_money_row['TodayBalance'].iloc[0]
+                    mp_money_yes = mp_money_row['YesBalance'].iloc[0]
+
+                # Extract data for ShortSale
+                ss_row = latest_data[latest_data['name'] == 'ShortSale']
+                if not ss_row.empty:
+                    ss_today = ss_row['TodayBalance'].iloc[0]
+                    ss_yes = ss_row['YesBalance'].iloc[0]
+
+                # Calculate user-requested metrics
+                # 融資餘額 (MarginPurchaseMoney TodayBalance) in millions (億元)
+                # 1 仟元 = 0.00001 億元
+                大盤融資餘額 = mp_money_today / 100000.0
+
+                # 融資增減 (MarginPurchaseMoney TodayBalance – MarginPurchaseMoney YesBalance) in millions (億元)
+                大盤融資增減 = (mp_money_today - mp_money_yes) / 100000.0
+
+                # 融券餘額 (ShortSale TodayBalance) in thousands of shares (張)
+                大盤融券餘額 = ss_today // 1000
+
+                # 融券增減 (ShortSale TodayBalance – ShortSale YesBalance) in thousands of shares (張)
+                大盤融券增減 = (ss_today - ss_yes) // 1000
+
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
@@ -193,8 +216,8 @@ else: # 執行診斷 = True
                         break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
-                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) 
-                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] 
+                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance'])
+                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance']
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
 
@@ -208,8 +231,8 @@ else: # 執行診斷 = True
 
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         mc4, mc5, mc6, mc7 = st.columns(4)
-        mc4.metric("融資增減", f"{大盤融資增減:+,d} 億")
-        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 億")
+        mc4.metric("融資增減", f"{大盤融資增減:+.2f} 億")
+        mc5.metric("融資餘額", f"{大盤融資餘額:+.2f} 億")
         mc6.metric("融券增減", f"{大盤融券增減:+,d} 張")
         mc7.metric("融券餘額", f"{大盤融券餘額:,.0f} 張")
 
