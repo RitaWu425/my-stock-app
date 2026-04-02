@@ -71,7 +71,8 @@ if not 執行診斷:
     - **籌碼面**：三大法人動向、融資券變動、借券回補天數。
     - **技術面**：5MA 趨勢、RSI 強弱指標。
     - **AI 顧問**：基於數據的投資亮點與風險分析。
-    """)
+    """
+)
 else: # 執行診斷 = True
     # --- 【除錯補強 1】：在 try 開始前強制初始化所有顯示變數，防止 NameError ---
     # 這樣即使下方抓資料失敗，變數依然存在，不會出現 '今日5MA量' is not defined
@@ -102,13 +103,20 @@ else: # 執行診斷 = True
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
+            
+            # Debug print for 大盤資料 (Moved to st.write for Streamlit visibility)
+            st.write("--- 大盤資料 (TAIEX) 原始資料 ---")
+            st.write("Columns:", 大盤資料.columns.tolist())
+            st.write("Tail:", 大盤資料.tail())
+            
             # 新增：大盤融資融券資料
             融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
             start_date=str(開始日期), 
             end_date=str(結束日期)
             )
-            print(融資券總表.columns)   # 確認欄位名稱
-            print(融資券總表.tail())    # 看最後幾筆資料
+            st.write("--- 融資券總表 原始資料 ---")
+            st.write("Columns:", 融資券總表.columns.tolist())
+            st.write("Tail:", 融資券總表.tail())
             # --- 【除錯補強 2】：修正大盤計算，增加 empty 判定 ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
@@ -171,12 +179,16 @@ else: # 執行診斷 = True
                 sbl_最新 = 借券資料.iloc[-1]
                 最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
                 今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
-                借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
-                還券比 = (今日還券 / 今日張數 * 100) if 今日張數 > 0 else 0
+                借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000 
+                還券比 = (今日還券 / 今日張數) * 100 if 今日張數 > 0 else 0
+
+                # 計算連續回補天數
+                連續回補 = 0
                 for i in range(len(借券資料)-1, -1, -1):
                     if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
                         連續回補 += 1
-                    else: break
+                    else:
+                        break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
                 今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
@@ -248,7 +260,7 @@ else: # 執行診斷 = True
 
             # 2. 顯示文字解析摘要 (包含連續回補燈號)
             status_color = "🟢" if 連續回補 > 0 else "⚪"
-            st.info(f"{status_color} **借券賣出摘要**：目前連續回補 :green[{連續回補}] 天。最新餘額 :green[{最新借券餘額:,.0f}] 張，整體還券力道為 :green[{還券比:.2f}%]。")
+            st.info(f"{status_color} **借券賣出摘要**：目前連續回補 :green[{連續回補}] 天。最新餘額 :green[{最新借券餘額:,.0f}] 張，整體還券力道為 :green[{還券比:.2f}]%。")
 
             # 3. 淨回補動態判斷 (修正語法結構)
             if 今日還券 > 借券賣出:
@@ -513,8 +525,8 @@ else: # 執行診斷 = True
             建議 = "💎 **分批買進**"
             理由 = "股價雖受壓制但指標與法人先行轉強，具備落後補漲潛力。"
         elif 多頭趨勢 and 最新RSI > 80:
-            建議 = "💰 **獲利了結**"
-            理由 = "指標進入極度超買區，短線乖離過大，建議先入袋為安。"
+            動作 = "💰 **獲利了結**"
+            策略 = "指標進入極度超買區，短線乖離過大，建議先入袋為安。"
         elif (not 多頭趨勢) and 外資 < 0 and 投信 < 0:
             建議 = "⚠️ **觀望/減碼**"
             理由 = "技術面破位且法人同步棄守，籌碼散亂，建議退場觀望。"
