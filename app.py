@@ -111,7 +111,6 @@ else: # 執行診斷 = True
 
             # 新增：大盤融資融券資料
             融資餘額總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
-            stock_id="MarginPurchaseMoney",
             start_date=str(開始日期), 
             end_date=str(結束日期)
             )
