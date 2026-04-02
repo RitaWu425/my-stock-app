@@ -109,34 +109,55 @@ else: # 執行診斷 = True
             st.write("Columns:", 大盤資料.columns.tolist())
             st.write("Tail:", 大盤資料.tail())
 
-            # 新增：大盤融資融券資料
-            融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
-            start_date=str(開始日期),
-            end_date=str(結束日期)
-            )
-            st.write("--- 融資券總表 原始資料 ---")
-            st.write("Columns:", 融資券總表.columns.tolist())
-            st.write("Tail:", 融資券總表.tail())
-            # --- 【除錯補強 2】：修正大盤計算，增加 empty 判定 ---
+# --- [A] 新增：大盤融資融券資料 (使用正確的隔離抓取邏輯) ---
+            try:
+                # 抓取原始資料
+                raw_total = dl.taiwan_stock_margin_purchase_short_sale_total(
+                    start_date=str(開始日期),
+                    end_date=str(結束日期)
+                )
+                # 核心防禦：如果回傳是字典(dict)，代表裡面包著 'data' 鍵值，需轉成 DataFrame
+                if isinstance(raw_total, dict):
+                    融資券總表 = pd.DataFrame(raw_total.get('data', []))
+                else:
+                    融資券總表 = raw_total
+            except Exception as e:
+                # 萬一連 API 呼叫都失敗，給一個空表防止後續崩潰
+                融資券總表 = pd.DataFrame()
+
+            # --- [B] 大盤行情資料處理 (這部分保留你原本正確的邏輯) ---
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
                 大盤收盤 = float(大盤最新["close"])
-                大盤漲跌 = float(大盤最新["spread"])
+                大盤漲跌 = float(大盤最新.get("spread", 0))
                 前日收盤 = float(大盤資料.iloc[-2]["close"])
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
-                大盤成交量 = float(大盤最新.get("Trading_money", 0)) / 1e8 # Corrected column name
-            # [B] 大盤資券補回
-            if not 融資券總表.empty:
-                最新總表 = 融資券總表.iloc[-1]
-                # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1e8 # Corrected column name based on user feedback
-                大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
-                # Use TodayBalance - YesBalance for 大盤融資增減
-                大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1000
-                if len(融資券總表) >= 2:
-                    前日總表 = 融資券總表.iloc[-2]
-                    # Assuming ShortSale has similar Today/Yes balance, but user didn't specify. Keep as-is for now.
-                    大盤融券增減 = (int(最新總表.get("ShortSale", 0)) - int(前日總表.get("ShortSale", 0))) // 1000 # Corrected column name
+                # 保持你正確的 Trading_money 億元換算
+                大盤成交量 = float(大盤最新.get("Trading_money", 0)) / 1e8 
+
+            # --- [C] 大盤資券運算 (修正融券為零與單位換算問題) ---
+            # 先給予預設值，防止變數不存在
+            大盤融資餘額 = 大盤融資增減 = 大盤融券餘額 = 大盤融券增減 = 0.0
+
+            if not 融資券總表.empty and 'name' in 融資券總表.columns:
+                # 1. 取得最新的一天資料 (避免垂直結構導致 iloc 抓錯行)
+                最新日期 = 融資券總表['date'].max()
+                當日資券 = 融資券總表[融資券總表['date'] == 最新日期]
+
+                # 2. 提取【融資金額】 (單位：仟元 -> 轉為億)
+                mp_money = 當日資券[當日資券['name'] == 'MarginPurchaseMoney']
+                if not mp_money.empty:
+                    # 除以 100,000 是因為 仟 -> 萬 -> 億 (10^3 -> 10^4 -> 10^8)
+                    大盤融資餘額 = float(mp_money.iloc[0]["TodayBalance"]) / 100000
+                    大盤融資增減 = (float(mp_money.iloc[0]["TodayBalance"]) - float(mp_money.iloc[0]["YesBalance"])) / 100000
+                
+                # 3. 提取【融券張數】 (單位：張)
+                ss_data = 當日資券[當日資券['name'] == 'ShortSale']
+                if not ss_data.empty:
+                    # 融券本來就是張數，不需再除以 1000
+                    大盤融券餘額 = float(ss_data.iloc[0]["TodayBalance"])
+                    大盤融券增減 = float(ss_data.iloc[0]["TodayBalance"]) - float(ss_data.iloc[0]["YesBalance"])
+            
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
