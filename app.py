@@ -126,15 +126,14 @@ else: # 執行診斷 = True
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
                 大盤成交量 = float(大盤最新.get("Trading_money", 0)) / 1e8 # Corrected column name
             # [B] 大盤資券補回
-            if not 融資券總表.empty:
+            if not 融資券總表.empty and len(融資券總表) >= 2:
                 最新總表 = 融資券總表.iloc[-1]
                 # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("MarginPurchaseMoneyTodayBalance", 0)) // 1e8 # Corrected column name
+                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1e8 # Corrected column name
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
-                if len(融資券總表) >= 2:
-                    最新總表 = 融資券總表.iloc[-2]
-                    大盤融資增減 = (融資券總表.iloc[-1]['MarginPurchaseMoneyTodayBalance'] - 融資券總表.iloc[-2]['MarginPurchaseMoneyYesBalance']) // 1000 # Corrected column name
-                    大盤融券增減 = (int(最新總表.get("ShortSaleTodayBalance", 0)) - int(最新總表.get("ShortSaleYesBalance", 0))) // 1000 # Corrected column name
+                前日總表 = 融資券總表.iloc[-2]
+                大盤融資增減 = (融資券總表.iloc[-1]['TodayBalance'] - 融資券總表.iloc[-2]['YesBalance']) // 1000 # Corrected column name
+                大盤融券增減 = (int(最新總表.get("ShortSaleTodayBalance", 0)) - int(最新總表.get("ShortSaleYesBalance", 0))) // 1000 # Corrected column name
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
