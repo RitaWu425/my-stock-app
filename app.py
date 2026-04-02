@@ -129,11 +129,11 @@ else: # 執行診斷 = True
             if not 融資券總表.empty:
                 最新總表 = 融資券總表.iloc[-1]
                 # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("Balance", 0)) // 1000 # Corrected column name
+                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1e8 # Corrected column name
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
                 if len(融資券總表) >= 2:
                     前日總表 = 融資券總表.iloc[-2]
-                    大盤融資增減 = (int(最新總表.get("Balance", 0)) - int(前日總表.get("Balance", 0))) // 1000 # Corrected column name
+                    大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(前日總表.get("Balance", 0))) // 1000 # Corrected column name
                     大盤融券增減 = (int(最新總表.get("ShortSale", 0)) - int(前日總表.get("ShortSale", 0))) // 1000 # Corrected column name
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
@@ -206,8 +206,8 @@ else: # 執行診斷 = True
 
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         mc4, mc5, mc6, mc7 = st.columns(4)
-        mc4.metric("融資增減", f"{大盤融資增減:+,d} 張")
-        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 張")
+        mc4.metric("融資增減", f"{大盤融資增減:+,d} 億")
+        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 億")
         mc6.metric("融券增減", f"{大盤融券增減:+,d} 張")
         mc7.metric("融券餘額", f"{大盤融券餘額:,.0f} 張")
                 
