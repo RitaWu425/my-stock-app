@@ -93,17 +93,17 @@ else: # 執行診斷 = True
             try:
                 股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
             except: 股名 = "未知"
-            
+
             法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-            
+
             # 財報與大盤抓取 (保持原樣)
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
-            
+
             # Debug print for 大盤資料 (Moved to st.write for Streamlit visibility)
             st.write("--- 大盤資料 (TAIEX) 原始資料 ---")
             st.write("Columns:", 大盤資料.columns.tolist())
@@ -137,13 +137,12 @@ else: # 執行診斷 = True
                     前日總表 = 融資券總表.iloc[-2]
                     # Assuming ShortSale has similar Today/Yes balance, but user didn't specify. Keep as-is for now.
                     大盤融券增減 = (int(最新總表.get("ShortSale", 0)) - int(前日總表.get("ShortSale", 0))) // 1000 # Corrected column name
-            
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
                 if 'date' in 股價資料.columns:
                     股價資料['date'] = pd.to_datetime(股價資料['date'])
-                
+
                 股價資料['5MA'] = 股價資料['close'].rolling(5).mean()
                 vol_col = 'Trading_Volume' if 'Trading_Volume' in 股價資料.columns else 'volume'
                 股價資料['Trading_Volume_Lots'] = 股價資料[vol_col] // 1000
@@ -173,7 +172,7 @@ else: # 執行診斷 = True
                 自營 = get_net(法人資料, 'Dealer_self')
                 權證 = get_net(法人資料, 'Dealer_Hedging')
                 區間外資, 區間投信, 區間自營, 區間權證 = 外資, 投信, 自營, 權證
-                
+
                 總量 = 股價資料['Trading_Volume_Lots'].sum() if not 股價資料.empty else 1
                 籌碼集中度 = ((外資 + 投信 + 自營 + 權證) / 總量 * 100)
 
@@ -182,7 +181,7 @@ else: # 執行診斷 = True
                 sbl_最新 = 借券資料.iloc[-1]
                 最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
                 今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
-                借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000 
+                借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
                 還券比 = (今日還券 / 今日張數) * 100 if 今日張數 > 0 else 0
 
                 # 計算連續回補天數
@@ -194,11 +193,11 @@ else: # 執行診斷 = True
                         break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
-                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance'])  
-                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance']  
+                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
+                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
-        
+
         # 在頂部儀表板前插入大盤資訊
         # 第一行：收盤指數、漲跌幅、總成交量
         st.subheader("📊 大盤資訊")
@@ -209,14 +208,14 @@ else: # 執行診斷 = True
 
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         mc4, mc5, mc6, mc7 = st.columns(4)
-        mc4.metric("融資增減", f"{大盤融資增減:+,d} 億")
-        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 億")
+        mc4.metric("融資增減", f"{大盤融資增減:+,d} 張")
+        mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 張")
         mc6.metric("融券增減", f"{大盤融券增減:+,d} 張")
         mc7.metric("融券餘額", f"{大盤融券餘額:,.0f} 張")
-                
+
         # --- 原本的個股頂部儀表板 ---
         st.subheader(f"📈 {股票代號} {股名} 個股資訊")
-        
+
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("最新股價", f"{最新股價} 元", f"{最新股價-昨日['close']:.2f}")
         col2.metric("5MA 均線", f"{最新5MA:.1f}")
@@ -241,7 +240,7 @@ else: # 執行診斷 = True
             最新借券餘額 = sbl_最新['SBLShortSalesPreviousDayBalance'] // 1000
             今日還券 = sbl_最新['SBLShortSalesReturns'] // 1000
             # 統一變數名稱為 借券賣出，避免下方判斷式報錯
-            借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000 
+            借券賣出 = sbl_最新['SBLShortSalesShortSales'] // 1000
             還券比 = (今日還券 / 今日張數) * 100 if 今日張數 > 0 else 0
 
             # 計算連續回補天數
@@ -274,17 +273,17 @@ else: # 執行診斷 = True
             st.warning("⚠️ 暫無借券資料可供分析。")
         # --- 數據深度拆解說明 (全面升級版) ---
         st.subheader("🔍 數據深度拆解說明")
-        
+
         col_left, col_right = st.columns(2)
-        
+
         with col_left:
             # [技術面]
             st.write(f"● **[技術面]**： {'股價高於 5MA，短線趨勢偏多。' if 最新股價 > 最新5MA else '股價低於 5MA，均線壓制明顯。'}")
-            
+
             # [法人面]
             分析法人 = "外資、投信同步站回買方，法人底氣足。" if 區間外資 > 0 and 區間投信 > 0 else "法人買賣力道交錯，尚無一致共識。"
             st.write(f"● **[法人面]**： {分析法人}")
-            
+
             # [籌碼面] (補齊)
             分析籌碼 = "籌碼集中度偏高，法人控盤穩定。" if 籌碼集中度 > 2 else "籌碼集中度較低，股價易受散戶情緒影響。"
             st.write(f"● **[籌碼面]**： {分析籌碼}")
@@ -298,21 +297,21 @@ else: # 執行診斷 = True
                 st.write("● **[量價面]**： 『帶量攻擊』，顯示買盤追價意願強烈。")
             else:
                 st.write("● **[量價面]**： 量能表現平平，目前動能尚未爆發。")
-            
+
             # [基本面] (優化版)
             if not 基本面資料.empty:
                 try:
                     # 篩選營業收入與營業利益
                     df_rev = 基本面資料[基本面資料['type'] == 'Revenue']
                     df_oi = 基本面資料[基本面資料['type'] == 'OperatingIncome']
-                    
+
                     if not df_rev.empty:
                         最新營收 = df_rev['value'].iloc[-1]
                         最新日期 = df_rev['date'].iloc[-1]
-                        
+
                         # 簡單判斷營收規模 (以億為單位)
                         st.write(f"● **[基本面]**: 最新財報日 :green[{最新日期}]。季度營收約 :green[{最新營收/1e8:.2f}] 億元。")
-                        
+
                         # 如果有營業利益，判斷是否獲利
                         if not df_oi.empty:
                             最新利益 = df_oi['value'].iloc[-1]
@@ -356,20 +355,20 @@ else: # 執行診斷 = True
                 ax2.bar(plot_sbl['date'], plot_sbl['Net_回補'], label='淨回補量(張)', color='green', alpha=0.5)
                 ax2.set_ylabel('當日淨回補張數', color='green')
                 ax2.axhline(0, color='black', linewidth=1)
-                
+
                 ax2_r = ax2.twinx()
                 ax2_r.plot(plot_sbl['date'], plot_sbl['Balance'], label='借券餘額', color='red', linewidth=2)
                 ax2_r.set_ylabel('總借券餘額 (張)', color='red')
-                
+
                 ax2.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
                 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
                 st.pyplot(fig)
                 # --- 戰情深度拆解文字 (新增於圖表下方) ---
                 st.markdown("---")
                 st.markdown("### 📝 技術與借券戰情拆解")
-                
+
                 t_col1, t_col2 = st.columns(2)
-                
+
                 with t_col1:
                     st.write("**【技術形態診斷】**")
                     if 最新股價 > 最新5MA:
@@ -379,7 +378,7 @@ else: # 執行診斷 = True
                             st.write(f"沿 5MA 走揚：股價持續維持在 5MA 之上，屬於強勢多頭排列，只要不破 5MA 慣性，多單可續抱。")
                     else:
                         st.write(f"⚠️ **均線壓制**：股價目前受制於 5MA ({最新5MA:.2f}) 之下。若無法帶量站回，需防範慣性下跌壓力，短線切勿盲目摸底。")
-                    
+
                     rsi_text = "超賣區鈍化" if 最新RSI < 20 else "低檔轉折" if 最新RSI < 30 else "中性震盪" if 最新RSI < 70 else "高檔過熱"
                     st.write(f"● **指標訊號**：RSI 目前為 :green[{最新RSI:.1f}]，處於 :green[{rsi_text}] 區間，建議參考借券動向觀察底部是否成形。")
 
@@ -401,40 +400,40 @@ else: # 執行診斷 = True
                     st.error(f"💡 **診斷結論**：技術面受壓且空方持續借券賣出，目前屬於『價弱籌碼散』，建議靜待籌碼洗清。")
             else:
                 st.warning("⚠️ 暫無借券資料可繪圖。")
-                
+
         # --- 分頁 2: 三大法人近五日動向 ---
         with tab2:
             if not 法人資料.empty:
                 # 整理資料：僅取外資、投信、自營商，並取最近 5 個交易日
                 df_inst = 法人資料.groupby(['date', 'name'])['buy'].sum() - 法人資料.groupby(['date', 'name'])['sell'].sum()
                 df_inst = df_inst.unstack().tail(5) / 1000 # 轉為張數 (取最後5天)
-                
+
                 if not df_inst.empty:
                     fig_inst, ax_inst = plt.subplots(figsize=(10, 5))
                     df_inst.plot(kind='bar', ax=ax_inst, width=0.8, color=['#FF9999', '#66B2FF', '#99FF99'])
-                    
+
                     ax_inst.set_ylabel('買賣超張數 (張)')
                     ax_inst.set_title(f'{股票代號} 近五日法人進出趨勢', fontsize=14)
                     ax_inst.axhline(0, color='black', linewidth=1, alpha=0.5)
                     ax_inst.grid(axis='y', linestyle='--', alpha=0.4)
                     plt.xticks(rotation=0)
                     st.pyplot(fig_inst)
-                    
+
                     # --- 法人行為深度分析 (強化版) ---
                 latest_day = df_inst.iloc[-1]
                 st.write("📝 **今日法人重點評析：**")
-                
+
                 # 取得外資與投信數值
                 f_buy = latest_day.get('Foreign_Investor', 0)
                 t_buy = latest_day.get('Investment_Trust', 0)
-                
+
                 # 運算：近五日累計與連續性 (判斷鎖碼)
                 sitc_5d_sum = df_inst['Investment_Trust'].sum()
                 foreign_5d_sum = df_inst['Foreign_Investor'].sum()
-                
+
                 # 建立分析欄位
                 inst_col1, inst_col2 = st.columns(2)
-                
+
                 with inst_col1:
                     st.write("**【外資與主力動態】**")
                     if f_buy > 0 and foreign_5d_sum > 1000:
@@ -475,7 +474,7 @@ else: # 執行診斷 = True
                 if not fund_data.empty:
                     df_rev = fund_data[fund_data['type'] == 'Revenue'].tail(4).copy()
                     df_gp = fund_data[fund_data['type'] == 'GrossProfit'].tail(4).copy()
-                    
+
                     if not df_rev.empty and not df_gp.empty:
                         df_merge = pd.merge(df_rev[['date', 'value']], df_gp[['date', 'value']], on='date', suffixes=('_rev', '_gp'))
                         df_merge['rev_billion'] = df_merge['value_rev'] / 1e8
@@ -484,19 +483,19 @@ else: # 執行診斷 = True
                         fig_f, ax_f1 = plt.subplots(figsize=(10, 5))
                         ax_f1.bar(df_merge['date'], df_merge['rev_billion'], color='#BDD7EE', label='季度營收(億)', width=0.4)
                         ax_f1.set_ylabel('營收 (億元)', color='#2F5597', fontweight='bold')
-                        
+
                         ax_f2 = ax_f1.twinx()
                         ax_f2.plot(df_merge['date'], df_merge['gp_margin'], color='#ED7D31', marker='o', linewidth=3, label='毛利率(%)')
                         ax_f2.set_ylabel('毛利率 (%)', color='#ED7D31', fontweight='bold')
-                        
+
                         # 標註毛利率數值
                         for i, txt in enumerate(df_merge['gp_margin']):
-                            ax_f2.annotate(f'{txt:.1f}%', (df_merge['date'].iloc[i], df_merge['gp_margin'].iloc[i]), 
+                            ax_f2.annotate(f'{txt:.1f}%', (df_merge['date'].iloc[i], df_merge['gp_margin'].iloc[i]),
                                          textcoords="offset points", xytext=(0,10), ha='center', color='#C65911', fontweight='bold')
 
                         plt.title(f"{股票代號} {股名} - 獲利能力趨勢", fontsize=14)
                         st.pyplot(fig_f)
-                        
+
                         latest_gp = df_merge['gp_margin'].iloc[-1]
                         prev_gp = df_merge['gp_margin'].iloc[-2]
                         gp_trend = "📈 提升" if latest_gp > prev_gp else "📉 下滑"
@@ -505,18 +504,18 @@ else: # 執行診斷 = True
                     st.warning("⚠️ 查無財報數據，可能該公司尚未公佈最新季度報表。")
             except Exception as e:
                 st.info("ℹ️ 基本面資料正在更新中或暫時無法存取。")
-        
+
         # --- ８. 完整智慧診斷輸出 (策略建議強化版) ---
         st.markdown("---")
         st.success("🧠 **圖表智慧診斷總結**")
-        
+
         # --- 策略邏輯運算 (先判定建議) ---
         # 1. 定義多頭條件
         多頭趨勢 = 最新股價 > 最新5MA
         量能增溫 = 今日張數 > 今日5MA量
         法人挺進 = (外資 > 0 or 投信 > 0)
         指標轉強 = 最新RSI > 50
-        
+
         # 2. 定義操作建議邏輯
         if 多頭趨勢 and 法人挺進 and 量能增溫:
             建議 = "🚀 **強勢加碼**"
@@ -541,7 +540,7 @@ else: # 執行診斷 = True
         diag_col1, diag_col2 = st.columns(2)
         with diag_col1:
             st.write(f"● **[趨勢判讀]**: {'✅ 短線轉強：股價已站在 5MA 之上。' if 多頭趨勢 else '⚠️ 均線壓制：目前股價低於 5MA。'}")
-            
+
             # 籌碼鎖定防錯
             sbl_val = locals().get('最新借券餘額', 0)
             if sbl_val > 0:
@@ -549,10 +548,10 @@ else: # 執行診斷 = True
                 st.write(f"● **[籌碼鎖定]**: 借券餘額 :green[{sbl_val:,.0f}] 張。{sbl_desc}")
             else:
                 st.write("● **[籌碼鎖定]**: 該個股暫無借券數據紀錄。")
-        
+
         with diag_col2:
             st.write(f"● **[買盤力道]**: {'🔥 買盤積極：帶量且高於均量。' if 量能增溫 else '🧊 追價乏力：量能萎縮中。'}")
-            
+
             rsi_status = "🔥 超買過熱" if 最新RSI > 70 else "❄️ 超賣低迷" if 最新RSI < 30 else "⚖️ 中性區間"
             st.write(f"● **[指標訊號]**: RSI(:green[{最新RSI:.1f}]) 處於 {rsi_status}。")
             # --- 最終操作建議 (排除非法字元與對齊修復) ---
@@ -594,7 +593,7 @@ else: # 執行診斷 = True
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 models = genai.list_models()
                 available_models = [m.name for m in models]
-                
+
                 # 1) 只有在 DEBUG=True 時才顯示完整清單
                 if DEBUG:
                     st.write("可用模型：", available_models)
