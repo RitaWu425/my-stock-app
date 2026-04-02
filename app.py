@@ -102,15 +102,40 @@ else: # 執行診斷 = True
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
-            融資券總表 = dl.get_data(dataset="TaiwanMarginPurchaseShortSaleTotal", start_date=str(開始日期), end_date=str(結束日期))
-            # --- 【除錯補強 2】：修正大盤計算，增加 empty 判定 ---
+# 這裡就是你說的崩潰點，我們加入 try...except 保護它
+            融資券總表 = pd.DataFrame() 
+            try:
+                temp_total = dl.get_data(
+                    dataset="TaiwanMarginPurchaseShortSaleTotal", 
+                    start_date=str(開始日期), 
+                    end_date=str(結束日期)
+                )
+                if isinstance(temp_total, pd.DataFrame):
+                    融資券總表 = temp_total
+            except:
+                融資券總表 = pd.DataFrame()
+
+            # --- 2. 數據運算 (每一段都加入 empty 判定) ---
+            
+            # [A] 大盤行情與成交量 (億元)
             if not 大盤資料.empty and len(大盤資料) >= 2:
                 大盤最新 = 大盤資料.iloc[-1]
-                大盤收盤 = float(大盤最新["close"])
-                大盤漲跌 = float(大盤最新["spread"])
-                前日收盤 = float(大盤資料.iloc[-2]["close"])
-                大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
+                大盤收盤 = float(大盤最新.get("close", 0))
+                大盤漲跌 = 大盤收盤 - float(大盤資料.iloc[-2].get("close", 0))
+                大盤漲跌幅 = (大盤漲跌 / float(大盤資料.iloc[-2].get("close", 1))) * 100
+                # 修正成交量為億元：使用 Trading_Money
                 大盤成交量 = float(大盤最新.get("Trading_Money", 0)) / 1e8
+
+            # [B] 大盤資券補回 (使用正確欄位名)
+            if not 融資券總表.empty:
+                t_latest = 融資券總表.iloc[-1]
+                # FinMind 大盤總表欄位：MarginPurchaseStockBalance
+                大盤融資餘額 = int(t_latest.get("MarginPurchaseStockBalance", 0)) // 1000
+                大盤融券餘額 = int(t_latest.get("ShortSaleStockBalance", 0)) // 1000
+                if len(融資券總表) >= 2:
+                    t_prev = 融資券總表.iloc[-2]
+                    大盤融資增減 = (int(t_latest.get("MarginPurchaseStockBalance", 0)) - int(t_prev.get("MarginPurchaseStockBalance", 0))) // 1000
+                    大盤融券增減 = (int(t_latest.get("ShortSaleStockBalance", 0)) - int(t_prev.get("ShortSaleStockBalance", 0))) // 1000
 
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
