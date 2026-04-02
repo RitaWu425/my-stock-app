@@ -155,10 +155,10 @@ else: # 執行診斷 = True
                 大盤融資增減 = (mp_money_today - mp_money_yes) / 100000.0
 
                 # 融券餘額 (ShortSale TodayBalance) in thousands of shares (張)
-                大盤融券餘額 = ss_today // 1000
+                大盤融券餘額 = ss_today
 
                 # 融券增減 (ShortSale TodayBalance – ShortSale YesBalance) in thousands of shares (張)
-                大盤融券增減 = (ss_today - ss_yes) // 1000
+                大盤融券增減 = (ss_today - ss_yes)
 
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
