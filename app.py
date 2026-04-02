@@ -110,7 +110,7 @@ else: # 執行診斷 = True
                 大盤漲跌 = float(大盤最新["spread"])
                 前日收盤 = float(大盤資料.iloc[-2]["close"])
                 大盤漲跌幅 = (大盤漲跌 / 前日收盤) * 100
-                大盤成交量 = int(大盤最新.get("Trading_Volume", 0)) // 1000
+                大盤成交量 = float(大盤最新.get("Trading_Money", 0)) / 1e8
 
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
