@@ -110,12 +110,14 @@ else: # 執行診斷 = True
                     start_date=str(開始日期), 
                     end_date=str(結束日期)
                 )
-                if isinstance(temp_total, pd.DataFrame):
-                    融資券總表 = temp_total
+                if isinstance(temp_total, dict):
+                    融資券總表 = pd.DataFrame(temp_total.get('data', []))
             except:
                 融資券總表 = pd.DataFrame()
 
-            # --- 2. 數據運算 (每一段都加入 empty 判定) ---
+            # --- 2. 大盤行情 (TAIEX) ---
+            raw_taiex = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
+            大盤資料 = raw_taiex if isinstance(raw_taiex, pd.DataFrame) else pd.DataFrame(raw_taiex.get('data', []))
             
             # [A] 大盤行情與成交量 (億元)
             if not 大盤資料.empty and len(大盤資料) >= 2:
