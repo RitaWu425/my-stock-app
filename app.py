@@ -129,7 +129,7 @@ else: # 執行診斷 = True
             if not 融資券總表.empty:
                 最新總表 = 融資券總表.iloc[-1]
                 # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1000 # Corrected column name based on user feedback
+                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1e8 # Corrected column name based on user feedback
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
                 # Use TodayBalance - YesBalance for 大盤融資增減
                 大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1000
