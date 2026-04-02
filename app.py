@@ -193,8 +193,8 @@ else: # 執行診斷 = True
                         break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
-                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
-                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
+                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 
+                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
         
