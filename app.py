@@ -132,7 +132,7 @@ else: # 執行診斷 = True
                 大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1e8 # Corrected column name based on user feedback
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
                 # Use TodayBalance - YesBalance for 大盤融資增減
-                大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1e8
+                大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1000
                 if len(融資券總表) >= 2:
                     前日總表 = 融資券總表.iloc[-2]
                     # Assuming ShortSale has similar Today/Yes balance, but user didn't specify. Keep as-is for now.
