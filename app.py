@@ -109,7 +109,7 @@ else: # 執行診斷 = True
             st.write("Columns:", 大盤資料.columns.tolist())
             st.write("Tail:", 大盤資料.tail())
 
-     # 新增：大盤融資融券資料
+            # 新增：大盤融資融券資料
             融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
             start_date=str(開始日期),
             end_date=str(結束日期)
@@ -129,7 +129,7 @@ else: # 執行診斷 = True
             if not 融資券總表.empty:
                 最新總表 = 融資券總表.iloc[-1]
                 # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1e8 # Corrected column name based on user feedback
+                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1000 # Corrected column name based on user feedback
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
                 # Use TodayBalance - YesBalance for 大盤融資增減
                 大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1000
@@ -137,7 +137,6 @@ else: # 執行診斷 = True
                     前日總表 = 融資券總表.iloc[-2]
                     # Assuming ShortSale has similar Today/Yes balance, but user didn't specify. Keep as-is for now.
                     大盤融券增減 = (int(最新總表.get("ShortSale", 0)) - int(前日總表.get("ShortSale", 0))) // 1000 # Corrected column name
-
             # --- 【除錯補強 3】：修正 KeyError: 'data'，確保股價資料不為空才執行 ---
             if not 股價資料.empty and len(股價資料) >= 2:
                 # 只有在有資料時才進行日期轉換與指標計算
