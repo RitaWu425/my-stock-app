@@ -42,7 +42,7 @@ st.markdown("""
     .data-label { font-size: 18px; font-weight: normal; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
     .val-neg { font-size: 22px; font-weight: bold; color: #00c853; } /* 綠色 */
-    .val-neu { font-size: 22px; font_weight: bold; color: #FFFFFF; }
+    .val-neu { font-size: 22px; font-weight: normal; color: #FFFFFF; }
     </style>
     """, unsafe_allow_html=True)
 
