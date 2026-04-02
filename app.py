@@ -148,11 +148,11 @@ else: # 執行診斷 = True
 
                 # Calculate user-requested metrics
                 # 融資餘額 (MarginPurchaseMoney TodayBalance) in millions (億元)
-                # 1 仟元 = 0.00001 億元
-                大盤融資餘額 = mp_money_today / 100000.0
+                # 1 億元 = 100,000,000 元
+                大盤融資餘額 = mp_money_today / 10000000.0
 
                 # 融資增減 (MarginPurchaseMoney TodayBalance – MarginPurchaseMoney YesBalance) in millions (億元)
-                大盤融資增減 = (mp_money_today - mp_money_yes) / 100000.0
+                大盤融資增減 = (mp_money_today - mp_money_yes) / 10000000.0
 
                 # 融券餘額 (ShortSale TodayBalance) in thousands of shares (張)
                 大盤融券餘額 = ss_today
@@ -231,7 +231,7 @@ else: # 執行診斷 = True
 
         # 第二行：融資增減、融資餘額、融券增減、融券餘額
         mc4, mc5, mc6, mc7 = st.columns(4)
-        mc4.metric("融資增減", f"{大盤融資增減:+.0f} 億")
+        mc4.metric("融資增減", f"{大盤融資增減:+.2f} 億")
         mc5.metric("融資餘額", f"{大盤融資餘額:,.0f} 億")
         mc6.metric("融券增減", f"{大盤融券增減:+,d} 張")
         mc7.metric("融券餘額", f"{大盤融券餘額:,.0f} 張")
