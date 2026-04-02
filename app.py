@@ -129,7 +129,7 @@ else: # 執行診斷 = True
             if not 融資券總表.empty:
                 最新總表 = 融資券總表.iloc[-1]
                 # 使用大盤專用欄位名
-                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1000 # Corrected column name based on user feedback
+                大盤融資餘額 = int(最新總表.get("TodayBalance", 0)) // 1e8 # Corrected column name based on user feedback
                 大盤融券餘額 = int(最新總表.get("ShortSale", 0)) // 1000 # Corrected column name
                 # Use TodayBalance - YesBalance for 大盤融資增減
                 大盤融資增減 = (int(最新總表.get("TodayBalance", 0)) - int(最新總表.get("YesBalance", 0))) // 1000
@@ -193,8 +193,8 @@ else: # 執行診斷 = True
                         break
 
             if not 融資券資料.empty and len(融資券資料) >= 2:
-                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 1000
-                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 1000
+                今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance']) // 
+                融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance'] // 
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
 
