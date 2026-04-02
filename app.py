@@ -103,7 +103,7 @@ else: # 執行診斷 = True
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
             大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
             # 新增：大盤融資融券資料
-            大盤融資券資料 = dl.taiwan_stock_margin_purchase_short_sale_total(
+            融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
             start_date=str(開始日期), 
             end_date=str(結束日期)
             )
