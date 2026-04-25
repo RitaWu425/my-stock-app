@@ -230,15 +230,15 @@ else: # 執行診斷 = True
                 latest_date = 主力散戶資料['date'].max()
                 latest_data_subset = 主力散戶資料[主力散戶資料['date'] == latest_date]
 
-                main_investors_df = latest_data_subset[latest_data_subset['name'] == 'institutional_investors']
+                main_investors_df = latest_data_subset[latest_data_subset['name'] == 'institutional_investors'].copy()
                 if not main_investors_df.empty:
                     主力買賣超 = (main_investors_df['buy'].sum() - main_investors_df['sell'].sum()) // 1000
                 else:
                     主力買賣超 = 0
 
-                retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors']
+                retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors'].copy()
                 if not retail_investors_df.empty:
-                    散戶買賣超 = (retail_investors_df['buy'] - retail_investors_df['sell']) // 1000 # Corrected typo here
+                    散戶買賣超 = (retail_investors_df['buy'] - retail_investors_df['sell']) // 1000 # Corrected variable name
                 else:
                     散戶買賣超 = 0
 
@@ -722,7 +722,8 @@ else: # 執行診斷 = True
                 if not model_name:
                     st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本.")
                 else:
-                    st.write(f"目前使用的模型：{model_name}")
+                    if DEBUG:
+                        st.write(f"目前使用的模型：{model_name}")
 
                     model = genai.GenerativeModel(model_name)
                     with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
@@ -755,8 +756,20 @@ else: # 執行診斷 = True
                                 text = getattr(response, "output_text", None) or getattr(response, "output", None)
                             if text:
                                 st.markdown("---")
-                                # Modified: Changed st.info to st.markdown to support unsafe_allow_html
-                                st.markdown(f"💡 <span style='color:#b3fcd3;'>**AI 診斷結果**</span>：\n\n{text}", unsafe_allow_html=True)
+                                st.subheader("💡 AI 診斷顧問意見")
+                                # 使用 ID #ai-result-box 隔離樣式，絕對不影響其他文字
+                                st.markdown(f"""
+                                <div id="ai-result-box" style="
+                                    background-color: #262730; 
+                                    color: #FFFFFF !important; 
+                                    padding: 25px; 
+                                    border-radius: 12px; 
+                                    font-size: 20px !important; 
+                                    line-height: 1.8; 
+                                    border-left: 5px solid #009688;">
+                                    {text.replace('\n', '<br>')}
+                                </div>
+                                """, unsafe_allow_html=True)
                             else:
                                 st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式.")
                         except AttributeError as ae:
