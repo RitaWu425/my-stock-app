@@ -10,13 +10,6 @@ import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
 
-# Install Streamlit if not already installed
-try:
-    import streamlit
-except ImportError:
-    !pip install streamlit
-    import streamlit as st
-
 # 基礎設定
 warnings.filterwarnings('ignore')
 st.set_page_config(page_title="台股籌碼智慧診斷系統", layout="wide")
