@@ -223,7 +223,7 @@ else: # 執行診斷 = True
                 總量 = 股價資料['Trading_Volume_Lots'].sum() if not 股價資料.empty else 1
                 籌碼集中度 = ((外資 + 投信 + 自營 + 權證) / 總量 * 100)
 
-            # 新增：主力與散戶買賣超計算
+            # 新增：主力與散戶買賣超計算 (修正邏輯)
             if not 主力散戶資料.empty:
                 if 'date' in 主力散戶資料.columns:
                     主力散戶資料['date'] = pd.to_datetime(主力散戶資料['date'])
@@ -231,15 +231,23 @@ else: # 執行診斷 = True
                 latest_date = 主力散戶資料['date'].max()
                 latest_data_subset = 主力散戶資料[主力散戶資料['date'] == latest_date]
 
-                main_investors_df = latest_data_subset[latest_data_subset['name'] == 'institutional_investors'].copy()
+                # Institutional investors names based on user's debug output
+                institutional_names = ['Foreign_Investor', 'Investment_Trust', 'Dealer_self', 'Dealer_Hedging', 'Foreign_Dealer_Self']
+
+                # Calculate 主力買賣超
+                main_investors_df = latest_data_subset[latest_data_subset['name'].isin(institutional_names)].copy() # Use isin()
                 if not main_investors_df.empty:
                     主力買賣超 = (main_investors_df['buy'].sum() - main_investors_df['sell'].sum()) // 1000
                 else:
                     主力買賣超 = 0
 
-                retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors'].copy()
-                if not retail_investors_df.empty:
-                    散戶買賣超 = (retail_investors_df['buy'].iloc[0] - retail_investors_df['sell'].iloc[0]) // 1000 # Corrected variable name
+                # Calculate 散戶買賣超
+                total_market_df = latest_data_subset[latest_data_subset['name'] == 'total'].copy()
+                if not total_market_df.empty:
+                    total_buy = total_market_df['buy'].sum()
+                    total_sell = total_market_df['sell'].sum()
+                    total_market_net = (total_buy - total_sell) // 1000
+                    散戶買賣超 = total_market_net - 主力買賣超 # Retail = Total Market - Institutional
                 else:
                     散戶買賣超 = 0
 
@@ -589,15 +597,19 @@ else: # 執行診斷 = True
                 plot_investors['date'] = pd.to_datetime(plot_investors['date'])
 
                 # Re-calculate 主力買賣超_張 and 散戶買賣超_張 using filtered data
-                main_investors_plot_df = plot_investors[plot_investors['name'] == 'institutional_investors'].copy()
-                retail_investors_plot_df = plot_investors[plot_investors['name'] == 'retail_investors'].copy()
+                # Use the corrected logic for '主力買賣超'
+                institutional_names_for_plot = ['Foreign_Investor', 'Investment_Trust', 'Dealer_self', 'Dealer_Hedging', 'Foreign_Dealer_Self']
+                main_investors_plot_df = plot_investors[plot_investors['name'].isin(institutional_names_for_plot)].copy()
+                retail_investors_plot_df = plot_investors[plot_investors['name'] == 'total'].copy()
 
-                main_investors_plot_df['主力買賣超_張'] = (main_investors_plot_df['buy'] - main_investors_plot_df['sell']) // 1000
-                retail_investors_plot_df['散戶買賣超_張'] = (retail_investors_plot_df['buy'] - retail_investors_plot_df['sell']) // 1000
+                main_investors_plot_df['主力買賣超_張'] = (main_investors_plot_df.groupby('date')['buy'].transform('sum') - main_investors_plot_df.groupby('date')['sell'].transform('sum')) // 1000
+                retail_investors_plot_df['散戶買賣超_張'] = (retail_investors_plot_df['buy'] - retail_investors_plot_df['sell']) // 1000 - main_investors_plot_df['主力買賣超_張']
 
                 fig_inv, ax_inv = plt.subplots(figsize=(12, 6))
                 if not main_investors_plot_df.empty:
-                    ax_inv.plot(main_investors_plot_df['date'], main_investors_plot_df['主力買賣超_張'], label='主力買賣超(張)', color='purple', linewidth=2)
+                    # Need to ensure unique dates for plotting, so aggregate if multiple entries per date for main investors
+                    main_plot_data = main_investors_plot_df.groupby('date')['主力買賣超_張'].sum().reset_index()
+                    ax_inv.plot(main_plot_data['date'], main_plot_data['主力買賣超_張'], label='主力買賣超(張)', color='purple', linewidth=2)
                 if not retail_investors_plot_df.empty:
                     ax_inv.plot(retail_investors_plot_df['date'], retail_investors_plot_df['散戶買賣超_張'], label='散戶買賣超(張)', color='gray', linestyle='--', linewidth=1)
 
