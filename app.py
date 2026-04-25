@@ -103,7 +103,7 @@ else: # 執行診斷 = True
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             主力散戶資料 = dl.get_data(
-                dataset='TaiwanStockTotalReturnInvestors',
+                dataset='TaiwanStockTotalInstitutionalInvestors',
                 data_id=股票代號,
                 start_date=str(開始日期),
                 end_date=str(結束日期)
@@ -745,6 +745,13 @@ else: # 執行診斷 = True
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
+
+    except Exception as e:
+        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+
+# --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
+if "股名" not in locals():
+    st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
 
     except Exception as e:
         st.error(f"❌ 診斷過程發生重大錯誤：{e}")
