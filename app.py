@@ -435,27 +435,35 @@ else: # 執行診斷 = True
                         else:
                             st.write(f"沿 5MA 走揚：股價持續維持在 5MA 之上，屬於強勢多頭排列，只要不破 5MA 慣性，多單可續抱。")
                     else:
-                        st.write(f"⚠️ **均線壓制**：股價目前受制於 5MA ({最新5MA:.2f}) 之下。若無法帶量站回，需防範慣性下跌壓力，短線切勿盲目摸底。")
+                        st.write(f"⚠️ **均線壓制**：股價目前受制於 5MA ({最新5MA:.2f}) 之下。若無法帶量站回，需防範慣性下跌壓力，短線切勿盲目摸底。"
+)
 
                     rsi_text = "超賣區鈍化" if 最新RSI < 20 else "低檔轉折" if 最新RSI < 30 else "中性震盪" if 最新RSI < 70 else "高檔過熱"
-                    st.write(f"● **指標訊號**：RSI 目前為 :green[{最新RSI:.1f}]，處於 :green[{rsi_text}] 區間，建議參考借券動向觀察底部是否成形。")
+                    st.write(f"● **指標訊號**：RSI 目前為 :green[{最新RSI:.1f}]，處於 :green[{rsi_text}] 區間，建議參考借券動向觀察底部是否成形。"
+)
 
                 with t_col2:
                     st.write("**【籌碼空方動向】**")
                     if 連續回補 >= 3:
-                        st.write(f"✅ **空頭認賠回補**：借券已連續 :green[{連續回補}] 天回補。這種『還券大於賣出』的現象若配合股價止跌，通常是法人空單撤退、底部浮現的訊號。")
+                        st.write(f"✅ **空頭認賠回補**：借券已連續 :green[{連續回補}] 天回補。這種『還券大於賣出』的現象若配合股價止跌，通常是法人空單撤退、底部浮現的訊號。"
+)
                     elif 借券賣出 > 今日還券:
-                        st.write(f"❌ **空方持續加壓**：今日借券賣出張數仍大於還券，且總餘額維持在 :green[{最新借券餘額:,.0f}] 張高位。顯示空頭勢力尚未鬆手，對股價形成實質壓力。")
+                        st.write(f"❌ **空方持續加壓**：今日借券賣出張數仍大於還券，且總餘額維持在 :green[{最新借券餘額:,.0f}] 張高位。顯示空頭勢力尚未鬆手，對股價形成實質壓力。"
+)
                     else:
-                        st.write(f"● **鎖單觀察**：借券餘額變動不大。目前空頭處於「鎖單」狀態，正在等待市場下一個變盤訊號。")
+                        st.write(f"● **鎖單觀察**：借券餘額變動不大。目前空頭處於「鎖單」狀態，正在等待市場下一個變盤訊號。"
+)
 
-                    st.write(f"● **追價力道**：今日成交張數為 :green[{今日張數:,.0f}] 張，與 5MA 均量相比為 :green[{(今日張數/今日5MA量 if 今日5MA量>0 else 1):.2f}] 倍。{'量能不足，推升力道受限。' if 今日張數 < 今日5MA量 else '量能升溫，市場參與度提高。'}")
+                    st.write(f"● **追價力道**：今日成交張數為 :green[{今日張數:,.0f}] 張，與 5MA 均量相比為 :green[{(今日張數/今日5MA量 if 今日5MA量>0 else 1):.2f}] 倍。{'量能不足，推升力道受限。' if 今日張數 < 今日5MA量 else '量能升溫，市場參與度提高。'}"
+)
 
                 # 智慧診斷小結
                 if 最新股價 > 最新5MA and 連續回補 >= 1:
-                    st.success(f"💡 **診斷結論**：股價站回短期均線且借券開始回補，籌碼面與技術面出現共振轉強，短線勝率提高。")
+                    st.success(f"💡 **診斷結論**：股價站回短期均線且借券開始回補，籌碼面與技術面出現共振轉強，短線勝率提高。"
+)
                 elif 最新股價 < 最新5MA and 借券賣出 > 今日還券:
-                    st.error(f"💡 **診斷結論**：技術面受壓且空方持續借券賣出，目前屬於『價弱籌碼散』，建議靜待籌碼洗清。")
+                    st.error(f"💡 **診斷結論**：技術面受壓且空方持續借券賣出，目前屬於『價弱籌碼散』，建議靜待籌碼洗清。"
+)
             else:
                 st.warning("⚠️ 暫無借券資料可繪圖。")
 
@@ -495,11 +503,14 @@ else: # 執行診斷 = True
                 with inst_col1:
                     st.write("**【外資與主力動態】**")
                     if f_buy > 0 and foreign_5d_sum > 1000:
-                        st.write(f"🚀 **外資波段加碼**：外資今日買超 :green[{f_buy:,.0f}] 張，且近五日累計買超 :green[{foreign_5d_sum:,.0f}] 張。屬於典型的波段佈局，對股價中長線走勢有利。")
+                        st.write(f"🚀 **外資波段加碼**：外資今日買超 :green[{f_buy:,.0f}] 張，且近五日累計買超 :green[{foreign_5d_sum:,.0f}] 張。屬於典型的波段佈局，對股價中長線走勢有利。"
+)
                     elif f_buy < 0 and foreign_5d_sum < -1000:
-                        st.write(f"🚨 **外資套利撤出**：外資近五日大舉調節 :green[{abs(foreign_5d_sum):,.0f}] 張。需留意是否因國際盤勢變動或避險需求而進行「提款」，短線承接需謹慎。")
+                        st.write(f"🚨 **外資套利撤出**：外資近五日大舉調節 :green[{abs(foreign_5d_sum):,.0f}] 張。需留意是否因國際盤勢變動或避險需求而進行「提款」，短線承接需謹慎。"
+)
                     elif f_buy > 0 and 最新股價 < 最新5MA:
-                        st.write(f"📉 **外資低位接盤**：股價雖在均線下，但外資已開始逢低試單。這通常是「左側交易」訊號，觀察是否能靠外資買盤止跌。")
+                        st.write(f"📉 **外資低位接盤**：股價雖在均線下，但外資已開始逢低試單。這通常是「左側交易」訊號，觀察是否能靠外資買盤止跌。"
+)
                     else:
                         st.write("● 外資目前買賣力道互有勝負，尚無明顯的單邊波段趨勢。")
 
@@ -507,22 +518,28 @@ else: # 執行診斷 = True
                     st.write("**【投信鎖碼與作帳】**")
                     # 判斷投信鎖碼邏輯：近五日買超顯著且佔比提升
                     if sitc_5d_sum > 500:
-                        st.write(f"🔥 **投信強勢鎖碼**：投信近五日積極掃貨 :green[{sitc_5d_sum:,.0f}] 張。在台股中，投信連買通常代表「認養股」行情，具備強大的跟單效應，是作帳行情的前兆。")
+                        st.write(f"🔥 **投信強勢鎖碼**：投信近五日積極掃貨 :green[{sitc_5d_sum:,.0f}] 張。在台股中，投信連買通常代表「認養股」行情，具備強大的跟單效應，是作帳行情的前兆。"
+)
                     elif t_buy < 0 and sitc_5d_sum > 1000:
-                        st.write(f"⚠️ **高檔獲利了結**：雖然投信先前重倉，但今日出現調節。需防範「作帳變結帳」，若跌破關鍵支撐需警戒。")
+                        st.write(f"⚠️ **高檔獲利了結**：雖然投信先前重倉，但今日出現調節。需防範「作帳變結帳」，若跌破關鍵支撐需警戒。"
+)
                     elif t_buy > 0:
-                        st.write(f"✅ **內資投信進場**：今日投信小幅佈局 :green[{t_buy:,.0f}] 張。若後續能出現連續性買盤，則有望形成新的支撐。")
+                        st.write(f"✅ **內資投信進場**：今日投信小幅佈局 :green[{t_buy:,.0f}] 張。若後續能出現連續性買盤，則有望形成新的支撐。"
+)
                     else:
                         st.write("● 投信暫無明顯進出。目前籌碼多由外資或市場大戶主導。")
 
                 # 智慧綜合評估
                 st.markdown("---")
                 if f_buy > 0 and t_buy > 0:
-                    st.success(f"💡 **籌碼總結 [英雄所見略同]**：外資與投信同步站在買方。兩大勢力方向一致時，股價『漲多跌少』，為目前最理想的多頭籌碼結構。")
+                    st.success(f"💡 **籌碼總結 [英雄所見略同]**：外資與投信同步站在買方。兩大勢力方向一致時，股價『漲多跌少』，為目前最理想的多頭籌碼結構。"
+)
                 elif f_buy < 0 and t_buy > 0:
-                    st.warning(f"💡 **籌碼總結 [土洋對作]**：投信力挺但外資在倒貨。這種情況下股價通常會劇烈震盪，建議以『投信成本線』作為防守參考。")
+                    st.warning(f"💡 **籌碼總結 [土洋對作]**：投信力挺但外資在倒貨。這種情況下股價通常會劇烈震盪，建議以『投信成本線』作為防守參考。"
+)
                 elif f_buy < 0 and t_buy < 0:
-                    st.error(f"💡 **籌碼總結 [雙殺警訊]**：法人同步棄守。當內外資皆在出貨時，應避開殺低風險，嚴格執行止損。")
+                    st.error(f"💡 **籌碼總結 [雙殺警訊]**：法人同步棄守。當內外資皆在出貨時，應避開殺低風險，嚴格執行止損。"
+)
 
         # --- 分頁 3: 基本面 (營收與毛利) ---
         with tab3:
@@ -587,7 +604,8 @@ else: # 執行診斷 = True
                 st.markdown("---")
                 st.markdown("### 📝 市場參與者動向解析")
                 st.write("此圖表展示了主力與散戶在指定期間內的買賣超變化。" "<ul><li><span style='color:purple;font-weight:bold;'>主力買賣超</span>：通常代表大額投資者（包含法人或大戶）的動向，其連續性買賣超對股價影響較大。</li>" "<li><span style='color:gray;font-weight:bold;'>散戶買賣超</span>：反映一般投資者的情緒，與主力動向常呈反向關係。</li></ul>", unsafe_allow_html=True)
-                st.write("透過觀察兩者趨勢，可判斷市場籌碼是集中於特定大戶，還是分散於散戶，有助於評估股價的穩定性與未來潛力。")
+                st.write("透過觀察兩者趨勢，可判斷市場籌碼是集中於特定大戶，還是分散於散戶，有助於評估股價的穩定性與未來潛力。"
+)
             else:
                 st.warning("⚠️ 暫無主力與散戶買賣超資料可繪圖。")
 
@@ -641,8 +659,7 @@ else: # 執行診斷 = True
             rsi_status = "🔥 超買過熱" if 最新RSI > 70 else "❄️ 超賣低迷" if 最新RSI < 30 else "⚖️ 中性區間"
             st.write(f"● **[指標訊號]**: RSI(:green[{最新RSI:.1f}]) 處於 {rsi_status}。")
             # --- 最終操作建議 (排除非法字元與對齊修復) ---
-        try:
-            st.markdown("---")
+
             # 1. 基礎條件定義 (確保變數存在)
             is_bull = 最新股價 > 最新5MA
             is_inst_buying = (外資 > 0 or 投信 > 0)
@@ -668,10 +685,7 @@ else: # 執行診斷 = True
             # 3. 顯示結果 (使用 st.info 確保樣式統一)
             st.info(f"{動作}\n\n**分析策略**：{策略}")
 
-        except Exception as e:
-            st.error(f"建議模組執行失敗：{e}")
-
-# --- 9. AI 投資顧問分析 (DEBUG 開關：開發時 True，正式環境 False) ---
+        # --- 9. AI 投資顧問分析 (DEBUG 開關：開發時 True，正式環境 False) ---
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
@@ -698,7 +712,8 @@ else: # 執行診斷 = True
 
                 # 3) 若沒模型就提示
                 if not model_name:
-                    st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。")
+                    st.warning("⚠️ 找不到可用的 Gemini 模型，請檢查 API Key 或 SDK 版本。"
+)
                 else:
                     st.write(f"目前使用的模型：{model_name}")
 
@@ -718,7 +733,7 @@ else: # 執行診斷 = True
                         1. 這檔股票目前的亮點在哪？
                         2. 最大的風險是什麼？
                         3. 進出場建議 (買進、加碼、續抱、攤平、獲利了結)。
-                        
+
                         請特別分析主力與中實戶的買賣超動向及其對股價的影響。
                         """
 
@@ -735,9 +750,11 @@ else: # 執行診斷 = True
                                 st.markdown("---")
                                 st.info(f"💡 <span style='color:#b3fcd3;'>**AI 診斷結果**</span>：\n\n{text}", unsafe_allow_html=True)
                             else:
-                                st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
+                                st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。"
+)
                         except AttributeError as ae:
-                            st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。")
+                            st.error(f"呼叫模型的方法不存在（AttributeError）：{ae}\n請檢查 SDK 版本或 supported_generation_methods。"
+)
                         except Exception as e:
                             st.warning(f"🕒 AI 服務暫時無法回應。詳情：{e}")
 
@@ -745,13 +762,6 @@ else: # 執行診斷 = True
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
-
-    except Exception as e:
-        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
-
-# --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
-if "股名" not in locals():
-    st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
 
     except Exception as e:
         st.error(f"❌ 診斷過程發生重大錯誤：{e}")
