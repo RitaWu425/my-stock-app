@@ -775,7 +775,6 @@ else: # 執行診斷 = True
 # --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
 if "股名" not in locals():
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
-
     except Exception as e:
         st.error(f"❌ 診斷過程發生重大錯誤：{e}")
 
