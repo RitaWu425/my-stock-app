@@ -239,7 +239,7 @@ else: # 執行診斷 = True
 
                 retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors'].copy()
                 if not retail_investors_df.empty:
-                    散戶買賣超 = (retail_investors_df['buy'].iloc[0] - retail_investors_df['sell'].iloc[0]) // 1000 # Corrected variable name
+                    散戶買賣超 = (retail_investors_plot_df['buy'].iloc[0] - retail_investors_plot_df['sell'].iloc[0]) // 1000 # Corrected variable name
                 else:
                     散戶買賣超 = 0
 
@@ -762,7 +762,7 @@ else: # 執行診斷 = True
                                 html_text = markdown.markdown(text)
                                 st.markdown(f"""
                                 <div id="ai-result-box" style=" background-color: #262730; color: #FFFFFF !important; padding: 25px; border-radius: 12px; font-size: 20px !important; line-height: 1.8; border-left: 5px solid #009688;">
-                                {html_text.replace('\n', '<br>')}
+                                {html_text}
                                 </div>
                                 """, unsafe_allow_html=True)
                             else:
