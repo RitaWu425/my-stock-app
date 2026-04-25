@@ -6,3 +6,4 @@ numpy
 tqdm
 requests
 google-generativeai
+markdown
