@@ -10,6 +10,13 @@ import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
 
+# Install Streamlit if not already installed
+try:
+    import streamlit
+except ImportError:
+    !pip install streamlit
+    import streamlit as st
+
 # 基礎設定
 warnings.filterwarnings('ignore')
 st.set_page_config(page_title="台股籌碼智慧診斷系統", layout="wide")
@@ -85,6 +92,8 @@ else: # 執行診斷 = True
     最新股價 = 最新5MA = 最新RSI = 今日張數 = 今日5MA量 = 0
     大盤收盤 = 大盤漲跌 = 大盤漲跌幅 = 大盤成交量 = 0
     大盤融資餘額 = 大盤融資增減 = 大盤融券餘額 = 大盤融券增減 = 0
+    主力買賣超 = 0 # Initialize new variable
+    散戶買賣超 = 0 # Initialize new variable
     昨日 = {"close": 0} # 防止昨日['close']抓不到
     股名 = "載入中..."
 
@@ -100,6 +109,16 @@ else: # 執行診斷 = True
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
+            主力散戶資料 = dl.get_data(
+                dataset='TaiwanStockTotalReturnInvestors',
+                data_id=股票代號,
+                start_date=str(開始日期),
+                end_date=str(結束日期)
+            )
+            if DEBUG:
+                st.write("--- 主力散戶資料 原始資料 ---")
+                st.write("Columns:", 主力散戶資料.columns.tolist())
+                st.write("Tail:", 主力散戶資料.tail())
 
             # 財報與大盤抓取 (保持原樣)
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
@@ -153,10 +172,10 @@ else: # 執行診斷 = True
                 # Calculate user-requested metrics
                 # 融資餘額 (MarginPurchaseMoney TodayBalance) in millions (億元)
                 # 1 億元 = 100,000,000 元
-                大盤融資餘額 = mp_money_today / 100000000.0 
+                大盤融資餘額 = mp_money_today / 100000000.0
 
                 # 融資增減 (MarginPurchaseMoney TodayBalance – MarginPurchaseMoney YesBalance) in millions (億元)
-                大盤融資增減 = (mp_money_today - mp_money_yes) / 100000000.0 
+                大盤融資增減 = (mp_money_today - mp_money_yes) / 100000000.0
 
                 # 融券餘額 (ShortSale TodayBalance) in thousands of shares (張)
                 # 更正：FinMind的ShortSale TodayBalance單位就是張，不需再除以1000
@@ -204,6 +223,13 @@ else: # 執行診斷 = True
 
                 總量 = 股價資料['Trading_Volume_Lots'].sum() if not 股價資料.empty else 1
                 籌碼集中度 = ((外資 + 投信 + 自營 + 權證) / 總量 * 100)
+
+            # 新增：主力與散戶買賣超計算
+            if not 主力散戶資料.empty:
+                latest_investors_data = 主力散戶資料.iloc[-1]
+                # Assuming 'Institutional_investors' is for三大法人, 'Major_investors' for主力, 'Retail_investors' for散戶
+                主力買賣超 = latest_investors_data['Major_investors'] // 1000 # Convert to shares (張)
+                散戶買賣超 = latest_investors_data['Retail_investors'] // 1000 # Convert to shares (張)
 
             # 4. 借券與信用 (增加判定)
             if not 借券資料.empty:
@@ -263,6 +289,15 @@ else: # 執行診斷 = True
             st.subheader("📉 信用與借券數據")
             st.write(f"融資變動：:green[{今日融資變動:+,d}] 張")
             st.write(f"融券總餘額：:green[{融券總餘額:,.0f}] 張")
+
+        # 新增：主力與散戶動向
+        st.markdown("---")
+        st.subheader("💸 市場參與者動向")
+        mc_main, mc_retail = st.columns(2)
+        with mc_main:
+            st.metric("主力買賣超", f"{主力買賣超:+,d} 張", delta=f"{主力買賣超:+,d}", delta_color="normal")
+        with mc_retail:
+            st.metric("散戶買賣超", f"{散戶買賣超:+,d} 張", delta=f"{散戶買賣超:+,d}", delta_color="inverse") # inverse color for retail (usually sell is good)
 
         # --- 借券解析邏輯 (修正變數與縮排) ---
         if not 借券資料.empty:
@@ -359,8 +394,8 @@ else: # 執行診斷 = True
         st.markdown("---")
         st.subheader("📈 深度戰情圖表分析")
 
-        # 建立三個分頁
-        tab1, tab2, tab3 = st.tabs(["🛡️ 技術與借券診斷", "🏦 三大法人動向", "📉 基本面獲利分析"])
+        # 建立四個分頁 (新增「市場參與者動向」)
+        tab1, tab2, tab3, tab4 = st.tabs(["🛡️ 技術與借券診斷", "🏦 三大法人動向", "📉 基本面獲利分析", "👥 市場參與者動向"])
 
         # --- 分頁 1: 技術與借券診斷 ---
         with tab1:
@@ -535,6 +570,34 @@ else: # 執行診斷 = True
             except Exception as e:
                 st.info("ℹ️ 基本面資料正在更新中或暫時無法存取。")
 
+        # --- 分頁 4: 市場參與者動向 ---
+        with tab4:
+            if not 主力散戶資料.empty:
+                plot_investors = 主力散戶資料.copy()
+                plot_investors['date'] = pd.to_datetime(plot_investors['date'])
+                plot_investors['主力買賣超_張'] = plot_investors['Major_investors'] // 1000
+                plot_investors['散戶買賣超_張'] = plot_investors['Retail_investors'] // 1000
+
+                fig_inv, ax_inv = plt.subplots(figsize=(12, 6))
+                ax_inv.plot(plot_investors['date'], plot_investors['主力買賣超_張'], label='主力買賣超(張)', color='purple', linewidth=2)
+                ax_inv.plot(plot_investors['date'], plot_investors['散戶買賣超_張'], label='散戶買賣超(張)', color='gray', linestyle='--', linewidth=1)
+                ax_inv.axhline(0, color='black', linewidth=0.8, linestyle='-')
+                ax_inv.set_title(f'{股票代號} {股名} - 主力與散戶買賣超趨勢', fontsize=16)
+                ax_inv.set_xlabel('日期')
+                ax_inv.set_ylabel('買賣超張數 (張)')
+                ax_inv.legend()
+                ax_inv.grid(True, alpha=0.3)
+                ax_inv.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+                fig_inv.tight_layout()
+                st.pyplot(fig_inv)
+
+                st.markdown("---")
+                st.markdown("### 📝 市場參與者動向解析")
+                st.write("此圖表展示了主力與散戶在指定期間內的買賣超變化。" "<ul><li><span style='color:purple;font-weight:bold;'>主力買賣超</span>：通常代表大額投資者（包含法人或大戶）的動向，其連續性買賣超對股價影響較大。</li>" "<li><span style='color:gray;font-weight:bold;'>散戶買賣超</span>：反映一般投資者的情緒，與主力動向常呈反向關係。</li></ul>", unsafe_allow_html=True)
+                st.write("透過觀察兩者趨勢，可判斷市場籌碼是集中於特定大戶，還是分散於散戶，有助於評估股價的穩定性與未來潛力。")
+            else:
+                st.warning("⚠️ 暫無主力與散戶買賣超資料可繪圖。")
+
         # --- ８. 完整智慧診斷輸出 (策略建議強化版) ---
         st.markdown("---")
         st.success("🧠 **圖表智慧診斷總結**")
@@ -654,12 +717,16 @@ else: # 執行診斷 = True
                         股票：{股票代號} {股名}
                         技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
                         籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
+                        主力買賣超：{'買超' if 主力買賣超 > 0 else '賣超'} {abs(主力買賣超)} 張。
+                        散戶買賣超：{'買超' if 散戶買賣超 > 0 else '賣超'} {abs(散戶買賣超)} 張。
                         目前借券餘額：{最新借券餘額} 張。
 
                         請直接告訴我：
                         1. 這檔股票目前的亮點在哪？
                         2. 最大的風險是什麼？
                         3. 進出場建議 (買進、加碼、續抱、攤平、獲利了結)。
+                        
+                        請特別分析主力與中實戶的買賣超動向及其對股價的影響。
                         """
 
                         # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
@@ -673,7 +740,7 @@ else: # 執行診斷 = True
                                 text = getattr(response, "output_text", None) or getattr(response, "output", None)
                             if text:
                                 st.markdown("---")
-                                st.info(f"💡 :green[**AI 診斷結果**]：\n\n{text}")
+                                st.info(f"💡 <span style='color:#b3fcd3;'>**AI 診斷結果**</span>：\n\n{text}", unsafe_allow_html=True)
                             else:
                                 st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式。")
                         except AttributeError as ae:
