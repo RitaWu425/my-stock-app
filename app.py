@@ -697,7 +697,6 @@ else: # 執行診斷 = True
         if "GEMINI_API_KEY" in st.secrets:
             try:
                 import google.generativeai as genai
-                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 models = genai.list_models()
                 available_models = [m.name for m in models]
 
@@ -756,8 +755,13 @@ else: # 執行診斷 = True
                                 text = getattr(response, "output_text", None) or getattr(response, "output", None)
                             if text:
                                 st.markdown("---")
-                                # Modified: Revert to st.info for AI diagnosis opinion styling
-                                st.info(f"💡 :green[**AI 診斷顧問意見**]：\n\n{text}")
+                                # Retain st.info for the title as per user's previous preference
+                                st.info("💡 :green[**AI 診斷顧問意見**]：")
+                                st.markdown(f"""
+                                <div id="ai-result-box" style=" background-color: #262730; color: #FFFFFF !important; padding: 25px; border-radius: 12px; font-size: 20px !important; line-height: 1.8; border-left: 5px solid #009688;">
+                                {text.replace('\n', '<br>')}
+                                </div>
+                                """, unsafe_allow_html=True)
                             else:
                                 st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式.")
                         except AttributeError as ae:
