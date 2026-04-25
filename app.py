@@ -10,6 +10,13 @@ import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
 
+# Install Streamlit if not already installed
+try:
+    import streamlit
+except ImportError:
+    !pip install streamlit
+    import streamlit as st
+
 # 基礎設定
 warnings.filterwarnings('ignore')
 st.set_page_config(page_title="台股籌碼智慧診斷系統", layout="wide")
@@ -219,10 +226,23 @@ else: # 執行診斷 = True
 
             # 新增：主力與散戶買賣超計算
             if not 主力散戶資料.empty:
-                latest_investors_data = 主力散戶資料.iloc[-1]
-                # Assuming 'institutional_investors' is for主力, 'retail_investors' for散戶
-                主力買賣超 = latest_investors_data['institutional_investors'] // 1000 # Convert to shares (張)
-                散戶買賣超 = latest_investors_data['retail_investors'] // 1000 # Convert to shares (張)
+                if 'date' in 主力散戶資料.columns:
+                    主力散戶資料['date'] = pd.to_datetime(主力散戶資料['date'])
+                
+                latest_date = 主力散戶資料['date'].max()
+                latest_data_subset = 主力散戶資料[主力散戶資料['date'] == latest_date]
+
+                main_investors_df = latest_data_subset[latest_data_subset['name'] == 'institutional_investors']
+                if not main_investors_df.empty:
+                    主力買賣超 = (main_investors_df['buy'].sum() - main_investors_df['sell'].sum()) // 1000
+                else:
+                    主力買賣超 = 0
+
+                retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors']
+                if not retail_investors_df.empty:
+                    散戶買賣超 = (retail_investors_df['buy'].sum() - retail_investors_df['sell'].sum()) // 1000
+                else:
+                    散戶買賣超 = 0
 
             # 4. 借券與信用 (增加判定)
             if not 借券資料.empty:
@@ -585,12 +605,20 @@ else: # 執行診斷 = True
             if not 主力散戶資料.empty:
                 plot_investors = 主力散戶資料.copy()
                 plot_investors['date'] = pd.to_datetime(plot_investors['date'])
-                plot_investors['主力買賣超_張'] = plot_investors['institutional_investors'] // 1000
-                plot_investors['散戶買賣超_張'] = plot_investors['retail_investors'] // 1000
+                
+                # Re-calculate 主力買賣超_張 and 散戶買賣超_張 using filtered data
+                main_investors_plot_df = plot_investors[plot_investors['name'] == 'institutional_investors'].copy()
+                retail_investors_plot_df = plot_investors[plot_investors['name'] == 'retail_investors'].copy()
+                
+                main_investors_plot_df['主力買賣超_張'] = (main_investors_plot_df['buy'] - main_investors_plot_df['sell']) // 1000
+                retail_investors_plot_df['散戶買賣超_張'] = (retail_investors_plot_df['buy'] - retail_investors_plot_df['sell']) // 1000
 
                 fig_inv, ax_inv = plt.subplots(figsize=(12, 6))
-                ax_inv.plot(plot_investors['date'], plot_investors['主力買賣超_張'], label='主力買賣超(張)', color='purple', linewidth=2)
-                ax_inv.plot(plot_investors['date'], plot_investors['散戶買賣超_張'], label='散戶買賣超(張)', color='gray', linestyle='--', linewidth=1)
+                if not main_investors_plot_df.empty:
+                    ax_inv.plot(main_investors_plot_df['date'], main_investors_plot_df['主力買賣超_張'], label='主力買賣超(張)', color='purple', linewidth=2)
+                if not retail_investors_plot_df.empty:
+                    ax_inv.plot(retail_investors_plot_df['date'], retail_investors_plot_df['散戶買賣超_張'], label='散戶買賣超(張)', color='gray', linestyle='--', linewidth=1)
+                
                 ax_inv.axhline(0, color='black', linewidth=0.8, linestyle='-')
                 ax_inv.set_title(f'{股票代號} {股名} - 主力與散戶買賣超趨勢', fontsize=16)
                 ax_inv.set_xlabel('日期')
