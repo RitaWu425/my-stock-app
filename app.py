@@ -9,6 +9,7 @@ import os
 import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
+import markdown # Import the markdown library
 
 # 基礎設定
 warnings.filterwarnings('ignore')
@@ -757,9 +758,11 @@ else: # 執行診斷 = True
                                 st.markdown("---")
                                 # Retain st.info for the title as per user's previous preference
                                 st.info("💡 :green[**AI 診斷顧問意見**]：")
+                                # Convert markdown to HTML before embedding in the div
+                                html_text = markdown.markdown(text)
                                 st.markdown(f"""
                                 <div id="ai-result-box" style=" background-color: #262730; color: #FFFFFF !important; padding: 25px; border-radius: 12px; font-size: 20px !important; line-height: 1.8; border-left: 5px solid #009688;">
-                                {text.replace('\n', '<br>')}
+                                {html_text.replace('\n', '<br>')}
                                 </div>
                                 """, unsafe_allow_html=True)
                             else:
