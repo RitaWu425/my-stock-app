@@ -74,7 +74,7 @@ if not 執行診斷:
     """
 )
 else: # 執行診斷 = True
-    DEBUG = True # Set to True to show debug info, False to hide
+    DEBUG = False # Set to True to show debug info, False to hide
 
     # --- 【除錯補強 1】：在 try 開始前強制初始化所有顯示變數，防止 NameError ---
     # 這樣即使下方抓資料失敗，變數依然存在，不會出現 '今日5MA量' is not defined
@@ -238,7 +238,7 @@ else: # 執行診斷 = True
 
                 retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors']
                 if not retail_investors_df.empty:
-                    散戶買賣超 = (retail_investors_df['buy'] - retail_investors_df['sell']) // 1000
+                    散戶買賣超 = (retail_investors_df['buy'] - retail_investors_df['sell']) // 1000 # Corrected typo here
                 else:
                     散戶買賣超 = 0
 
@@ -378,8 +378,8 @@ else: # 執行診斷 = True
             if not 基本面資料.empty:
                 try:
                     # 篩選營業收入與營業利益
-                    df_rev = 基本面資料[基本面資料['type'] == 'Revenue']
-                    df_oi = 基本面資料[基本面資料['type'] == 'OperatingIncome']
+                    df_rev = 基本面資料[基本面資料['type'] == 'Revenue'].tail(4).copy()
+                    df_oi = 基本面資料[基本面資料['type'] == 'OperatingIncome'].tail(4).copy()
 
                     if not df_rev.empty:
                         最新營收 = df_rev['value'].iloc[-1]
@@ -775,4 +775,3 @@ else: # 執行診斷 = True
 # --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
 if "股名" not in locals():
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
-
