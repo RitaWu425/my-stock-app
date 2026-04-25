@@ -10,6 +10,13 @@ import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
 
+# Install Streamlit if not already installed
+try:
+    import streamlit
+except ImportError:
+    !pip install streamlit
+    import streamlit as st
+
 # 基礎設定
 warnings.filterwarnings('ignore')
 st.set_page_config(page_title="台股籌碼智慧診斷系統", layout="wide")
@@ -238,7 +245,7 @@ else: # 執行診斷 = True
 
                 retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors'].copy()
                 if not retail_investors_df.empty:
-                    散戶買賣超 = (retail_investors_df['buy'] - retail_investors_df['sell']) // 1000 # Corrected variable name
+                    散戶買賣超 = (retail_investors_df['buy'].iloc[0] - retail_investors_df['sell'].iloc[0]) // 1000 # Corrected variable name
                 else:
                     散戶買賣超 = 0
 
@@ -760,12 +767,10 @@ else: # 執行診斷 = True
                                 # 使用 ID #ai-result-box 隔離樣式，絕對不影響其他文字
                                 st.markdown(f"""
                                 <div id="ai-result-box" style="
-                                    background-color: #262730; 
-                                    color: #FFFFFF !important; 
-                                    padding: 25px; 
-                                    border-radius: 12px; 
-                                    font-size: 20px !important; 
-                                    line-height: 1.8; 
+                                    background-color: #262730;
+                                    padding: 25px;
+                                    border-radius: 12px;
+                                    line-height: 1.8;
                                     border-left: 5px solid #009688;">
                                     {text.replace('\n', '<br>')}
                                 </div>
