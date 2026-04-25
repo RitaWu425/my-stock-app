@@ -9,7 +9,6 @@ import os
 import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
-import markdown # Import the markdown library
 
 # 基礎設定
 warnings.filterwarnings('ignore')
