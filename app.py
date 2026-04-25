@@ -37,7 +37,7 @@ dl = init_all()
 # --- CSS 樣式修正 (字體大小對調與正負色) ---
 st.markdown("""
     <style>
-    .stMetric label { font-size: 20px !important; color: #BBBBBB !important; }
+    .stMetric label { font-size: 22px !important; color: #FFFFFF !important; } /* Adjusted for prominence */
     .stMetric div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: normal !important; }
     .data-label { font-size: 18px; font-weight: normal; color: #FFFFFF; margin-bottom: 5px; }
     .val-pos { font-size: 22px; font-weight: bold; color: #ff4b4b; } /* 紅色 */
@@ -756,18 +756,8 @@ else: # 執行診斷 = True
                                 text = getattr(response, "output_text", None) or getattr(response, "output", None)
                             if text:
                                 st.markdown("---")
-                                st.subheader("💡 AI 診斷顧問意見")
-                                # 使用 ID #ai-result-box 隔離樣式，絕對不影響其他文字
-                                st.markdown(f"""
-                                <div id="ai-result-box" style="
-                                    background-color: #262730;
-                                    padding: 25px;
-                                    border-radius: 12px;
-                                    line-height: 1.8;
-                                    border-left: 5px solid #009688;">
-                                    {text.replace('\n', '<br>')}
-                                </div>
-                                """, unsafe_allow_html=True)
+                                # Modified: Revert to st.info for AI diagnosis opinion styling
+                                st.info(f"💡 :green[**AI 診斷顧問意見**]：\n\n{text}")
                             else:
                                 st.warning("AI 有回應但無法解析回傳內容，請檢查 SDK 版本與回傳格式.")
                         except AttributeError as ae:
