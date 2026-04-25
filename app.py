@@ -75,7 +75,7 @@ if not 執行診斷:
     """
 )
 else: # 執行診斷 = True
-    DEBUG = False # Set to True to show debug info, False to hide
+    DEBUG = True # Set to True to show debug info, False to hide
 
     # --- 【除錯補強 1】：在 try 開始前強制初始化所有顯示變數，防止 NameError ---
     # 這樣即使下方抓資料失敗，變數依然存在，不會出現 '今日5MA量' is not defined
@@ -776,6 +776,13 @@ else: # 執行診斷 = True
                 st.warning(f"🕒 AI 服務暫時無法回應。詳情：{ai_err}")
         else:
             st.error("🔑 尚未在 Streamlit Secrets 設定 GEMINI_API_KEY。")
+
+    except Exception as e:
+        st.error(f"❌ 診斷過程發生重大錯誤：{e}")
+
+# --- 10. 初始狀態與按鈕修復 (必須完全「不縮進」，靠最左邊) ---
+if "股名" not in locals():
+    st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
 
     except Exception as e:
         st.error(f"❌ 診斷過程發生重大錯誤：{e}")
