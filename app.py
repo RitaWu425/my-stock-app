@@ -239,7 +239,7 @@ else: # 執行診斷 = True
 
                 retail_investors_df = latest_data_subset[latest_data_subset['name'] == 'retail_investors'].copy()
                 if not retail_investors_df.empty:
-                    散戶買賣超 = (retail_investors_plot_df['buy'].iloc[0] - retail_investors_plot_df['sell'].iloc[0]) // 1000 # Corrected variable name
+                    散戶買賣超 = (retail_investors_df['buy'].iloc[0] - retail_investors_df['sell'].iloc[0]) // 1000 # Corrected variable name
                 else:
                     散戶買賣超 = 0
 
@@ -380,7 +380,7 @@ else: # 執行診斷 = True
                 try:
                     # 篩選營業收入與營業利益
                     df_rev = 基本面資料[基本面資料['type'] == 'Revenue'].tail(4).copy()
-                    df_oi = 基本面資料[基本面資料['type'] == 'OperatingIncome'].tail(4).copy()
+                    df_gp = 基本面資料[基本面資料['type'] == 'GrossProfit'].tail(4).copy()
 
                     if not df_rev.empty:
                         最新營收 = df_rev['value'].iloc[-1]
@@ -390,8 +390,8 @@ else: # 執行診斷 = True
                         st.write(f"● **[基本面]**: 最新財報日 :green[{最新日期}]。季度營收約 :green[{最新營收/1e8:.2f}] 億元。")
 
                         # 如果有營業利益，判斷是否獲利
-                        if not df_oi.empty:
-                            最新利益 = df_oi['value'].iloc[-1]
+                        if not df_gp.empty:
+                            最新利益 = df_gp['value'].iloc[-1]
                             本業狀態 = "✅ 本業獲利" if 最新利益 > 0 else "⚠️ 本業虧損"
                             st.write(f"  └─ {本業狀態}：營業利益 :green[{最新利益/1e8:.2f}] 億元。")
                     else:
