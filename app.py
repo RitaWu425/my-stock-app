@@ -57,7 +57,7 @@ now = datetime.now()
 default_end_date = now.date() - timedelta(days=1)
 
 st.sidebar.header("📊 診斷參數設定")
-股票代號 = st.sidebar.text_input("輸入股票代號", value="3481")
+股票代號 = st.sidebar.text_input("輸入股票代號", value="2330")
 開始日期 = st.sidebar.date_input("開始日期", value=default_end_date - timedelta(days=365))
 結束日期 = st.sidebar.date_input("結束日期", value=default_end_date)
 執行診斷 = st.sidebar.button("開始執行診斷")
@@ -650,7 +650,7 @@ else: # 執行診斷 = True
                     with st.spinner("🤖 AI 顧問正在同步研讀所有數據..."):
                         # 4) 建立 prompt（請確保下面變數在此區塊之前已定義）
                         ai_prompt = f"""
-                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據及配合國際總經、中東戰爭、地緣風險及產業前景，提供 400 字內的專業投資建議：
+                        你是一位精通台股與籌碼分析的專家，請使用「繁體中文」及台灣用語，針對以下數據並配合國際總經、中東戰爭、地緣風險、產業前景及個股基本面，提供 450 字內的專業投資建議：
                         股票：{股票代號} {股名}
                         技術面：收盤價 {最新股價}，5MA {最新5MA:.2f}。
                         籌碼面：外資今日 {'買超' if 外資 > 0 else '賣超'} {abs(外資)} 張，投信 {'買超' if 投信 > 0 else '賣超'} {abs(投信)} 張。
@@ -659,7 +659,7 @@ else: # 執行診斷 = True
                         請直接告訴我：
                         1. 這檔股票目前的亮點在哪？
                         2. 最大的風險是什麼？
-                        3. 進出場建議 (買進、加碼、續抱、獲利了結)。
+                        3. 進出場建議 (買進、加碼、續抱、攤平、獲利了結)。
                         """
 
                         # 5) 嘗試呼叫模型（若 generate_content 不存在，會捕捉並顯示錯誤）
