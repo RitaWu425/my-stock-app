@@ -10,11 +10,16 @@ import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
 import markdown # Import the markdown library
+import subprocess # Import subprocess
 
 # Ensure plotly is installed for Streamlit app
-!pip install plotly
-import plotly.express as px # Import plotly
-import plotly.io as pio
+try:
+    import plotly.express as px # Import plotly
+    import plotly.io as pio
+except ImportError:
+    subprocess.check_call(['pip', 'install', 'plotly'])
+    import plotly.express as px
+    import plotly.io as pio
 
 # 基礎設定
 warnings.filterwarnings('ignore')
@@ -110,7 +115,6 @@ else: # 執行診斷 = True
     main_force_weekly_change = 0.0
     retail_weekly_change = 0.0
     股名 = "載入中..."
-    df_filtered_by_stock = pd.DataFrame() # Initialize df_filtered_by_stock
 
     try:
         with st.spinner('正在分析數據中...'):
@@ -160,20 +164,20 @@ else: # 執行診斷 = True
             # [B] 大盤資券補回
             if not 融資券總表.empty:
                 # Get the latest date available in the DataFrame
-                latest_date_total = 融資券總表['date'].max() # Renamed to avoid clash
-                latest_data_total = 融資券總表[融資券總表['date'] == latest_date_total]
+                latest_date = 融資券總表['date'].max()
+                latest_data = 融資券總表[融資券總表['date'] == latest_date]
 
                 # Initialize variables to avoid NameError if specific names are not found
                 mp_money_today = mp_money_yes = ss_today = ss_yes = 0.0
 
                 # Extract data for MarginPurchaseMoney
-                mp_money_row = latest_data_total[latest_data_total['name'] == 'MarginPurchaseMoney']
+                mp_money_row = latest_data[latest_data['name'] == 'MarginPurchaseMoney']
                 if not mp_money_row.empty:
                     mp_money_today = mp_money_row['TodayBalance'].iloc[0]
                     mp_money_yes = mp_money_row['YesBalance'].iloc[0]
 
                 # Extract data for ShortSale
-                ss_row = latest_data_total[latest_data_total['name'] == 'ShortSale']
+                ss_row = latest_data[latest_data['name'] == 'ShortSale']
                 if not ss_row.empty:
                     ss_today = ss_row['TodayBalance'].iloc[0]
                     ss_yes = ss_row['YesBalance'].iloc[0]
@@ -254,21 +258,7 @@ else: # 執行診斷 = True
                 今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance'])
                 融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance']
 
-            # --- NEW: 5. TDCC 股權持股分級資料抓取與處理 ---
-            tdcc_url_new = 'https://opendata.tdcc.com.tw/getOD.ashx?id=1-5'
-            try:
-                df_tdcc_full = pd.read_csv(tdcc_url_new)
-                df_tdcc_full['證券代號'] = df_tdcc_full['證券代號'].str.strip()
-                df_tdcc_full['持股分級'] = pd.to_numeric(df_tdcc_full['持股分級'], errors='coerce')
-
-                # Filter for the selected stock and exclude levels 16 and 17
-                df_filtered_by_stock = df_tdcc_full[
-                    (df_tdcc_full['證券代號'] == 股票代號) &
-                    (~df_tdcc_full['持股分級'].isin([16, 17]))
-                ].copy()
-            except Exception as e:
-                st.warning(f"從 TDCC 獲取股權分散表資料時發生錯誤：{e}")
-                df_filtered_by_stock = pd.DataFrame()
+            # Removed 5. 股權持股分級分析 due to access restrictions
 
 
         # --- 4. 網頁視覺化輸出 ---
@@ -407,7 +397,7 @@ else: # 執行診斷 = True
         st.subheader("📈 深度戰情圖表分析")
 
         # 建立三個分頁 (移除「市場參與者動向」)
-        tab1, tab2, tab3, tab4 = st.tabs(["🛡️ 技術與借券診斷", "🏦 三大法人動向", "📉 基本面獲利分析", "📊 股權持股分級"]) # Added tab4
+        tab1, tab2, tab3 = st.tabs(["🛡️ 技術與借券診斷", "🏦 三大法人動向", "📉 基本面獲利分析"])
 
         # --- 分頁 1: 技術與借券診斷 ---
         with tab1:
@@ -582,37 +572,7 @@ else: # 執行診斷 = True
             except Exception as e:
                 st.info("ℹ️ 基本面資料正在更新中或暫時無法存取。")
 
-        # --- NEW: 分頁 4: 股權持股分級 ---
-        with tab4:
-            if not df_filtered_by_stock.empty:
-                # 設定 Plotly 的全域主題為 dark (可以設定為 Streamlit 主題)
-                # pio.templates.default = "plotly_dark" # Moved to the beginning of the file or handled by streamlit theme
-
-                try:
-                    # 使用 Plotly 繪製持股分級人數分布圖
-                    fig = px.bar(
-                        df_filtered_by_stock,
-                        x='持股分級',
-                        y='人數',
-                        title=f'持股分級人數分布圖 (證券代碼: {股票代號})',
-                        labels={'持股分級': '持股分級', '人數': '股東人數'},
-                        color='人數',
-                        color_continuous_scale='Viridis'
-                    )
-
-                    fig.update_layout(
-                        xaxis = dict(
-                            tickmode = 'linear',
-                            dtick = 1
-                        )
-                    )
-
-                    st.plotly_chart(fig) # Use st.plotly_chart to display in Streamlit
-
-                except Exception as e:
-                    st.error(f"繪製股權持股分級圖表時發生錯誤：{e}")
-            else:
-                st.warning(f"⚠️ 找不到股票代號 {股票代號} 的股權持股分級資料，或該股票在過濾後沒有有效的持股分級數據。")
+        # Removed 分頁 4: 股權持股分級 due to access restrictions
 
 
         # --- ８. 完整智慧診斷輸出 (策略建議強化版) ---
