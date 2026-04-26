@@ -10,9 +10,6 @@ import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
 import markdown # Import the markdown library
-import plotly.express as px
-import plotly.io as pio
-import plotly.graph_objects as go
 
 # 基礎設定
 warnings.filterwarnings('ignore')
