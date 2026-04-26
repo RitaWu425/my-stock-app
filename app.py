@@ -10,6 +10,9 @@ import urllib.request
 from matplotlib import font_manager
 from datetime import datetime, timedelta
 import markdown # Import the markdown library
+
+# Ensure plotly is installed for Streamlit app
+!pip install plotly
 import plotly.express as px # Import plotly
 import plotly.io as pio
 
@@ -260,7 +263,7 @@ else: # 執行診斷 = True
 
                 # Filter for the selected stock and exclude levels 16 and 17
                 df_filtered_by_stock = df_tdcc_full[
-                    (df_tdcc_full['證券代號'] == 股票代號) & 
+                    (df_tdcc_full['證券代號'] == 股票代號) &
                     (~df_tdcc_full['持股分級'].isin([16, 17]))
                 ].copy()
             except Exception as e:
@@ -582,7 +585,7 @@ else: # 執行診斷 = True
         # --- NEW: 分頁 4: 股權持股分級 ---
         with tab4:
             if not df_filtered_by_stock.empty:
-                # 設定 Plotly 的全域主題為 dark (可以設定為 Streamlit 主題) 
+                # 設定 Plotly 的全域主題為 dark (可以設定為 Streamlit 主題)
                 # pio.templates.default = "plotly_dark" # Moved to the beginning of the file or handled by streamlit theme
 
                 try:
