@@ -88,7 +88,7 @@ if not 執行診斷:
     """
 )
 else: # 執行診斷 = True
-    DEBUG = True # Set to True to show debug info, False to hide
+    DEBUG = False # Set to True to show debug info, False to hide
 
     # --- 【除錯補強 1】：在 try 開始前強制初始化所有顯示變數，防止 NameError ---
     # 這樣即使下方抓資料失敗，變數依然存在，不會出現 '今日5MA量' is not defined
@@ -128,6 +128,10 @@ else: # 執行診斷 = True
                 start_date=start_date_str,
                 end_date=end_date_str
             )
+            # if DEBUG:
+            #     st.write("--- 股權持股分級表 (TaiwanStockShareholding) 原始資料 ---")
+            #     st.write("Columns:", shareholding_data.columns.tolist())
+            #     st.write("Head:", shareholding_data.head())
 
             # 財報與大盤抓取 (保持原樣)
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
