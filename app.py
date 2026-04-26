@@ -31,7 +31,20 @@ def init_all():
             plt.rcParams['font.family'] = fe.name
         except: pass
     plt.rcParams['axes.unicode_minus'] = False
-    return DataLoader()
+
+    # Fetch FinMind API token from Streamlit secrets if available
+    finmind_api_token = None
+    try:
+        finmind_api_token = st.secrets.get('FINMIND_API_TOKEN')
+    except Exception as e:
+        st.warning(f"無法從 Streamlit secrets 取得 FINMIND_API_TOKEN：{e}")
+
+    # Initialize DataLoader with the token if available
+    if finmind_api_token:
+        return DataLoader(token=finmind_api_token)
+    else:
+        st.warning("FinMind API Token 未設定。部分功能可能需要付費帳戶才能使用。")
+        return DataLoader()
 
 dl = init_all()
 
