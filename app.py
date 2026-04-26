@@ -93,47 +93,34 @@ else: # 執行診斷 = True
 
     try:
         with st.spinner('正在分析數據中...'):
+            # Explicitly format dates to 'YYYY-MM-DD' for all FinMind API calls
+            start_date_str = 開始日期.strftime('%Y-%m-%d')
+            end_date_str = 結束日期.strftime('%Y-%m-%d')
+
             # 1. 資料抓取 (保持原樣)
             個股資訊 = dl.taiwan_stock_info()
             try:
                 股名 = 個股資訊[個股資訊['stock_id'] == 股票代號]['stock_name'].values[0]
             except: 股名 = "未知"
 
-            法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-            股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-            融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-            借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=str(開始日期), end_date=str(結束日期))
-            # 舊的主力散戶資料 (已不再使用此定義)
-            # 主力散戶資料 = dl.get_data(
-            #     dataset='TaiwanStockTotalInstitutionalInvestors',
-            #     data_id=股票代號,
-            #     start_date=str(開始日期),
-            #     end_date=str(結束日期)
-            # )
+            法人資料 = dl.taiwan_stock_institutional_investors(stock_id=股票代號, start_date=start_date_str, end_date=end_date_str)
+            股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=start_date_str, end_date=end_date_str)
+            融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=start_date_str, end_date=end_date_str)
+            借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=start_date_str, end_date=end_date_str)
 
             # 新增：股東持股分級表資料 (TaiwanStockHoldingSharesPer)
             # 這個資料集是每週更新一次，所以時間區間可以拉長一點確保有足足數據
             holding_shares_per_data = dl.get_data(
                 dataset='TaiwanStockHoldingSharesPer',
                 data_id=股票代號,
-                start_date=str(pd.to_datetime(開始日期) - pd.Timedelta(days=60)), # 抓取更早的資料以計算變化
-                end_date=str(結束日期)
+                start_date=(pd.to_datetime(開始日期) - pd.Timedelta(days=60)).strftime('%Y-%m-%d'), # 抓取更早的資料以計算變化，並格式化
+                end_date=end_date_str
             )
-
-            # if DEBUG:
-            #     st.write("--- 主力散戶資料 原始資料 ---")
-            #     st.write("Columns:", 主力散戶資料.columns.tolist())
-            #     st.write("Head:", 主力散戶資料.head())
-            #     st.write("Info:")
-            #     主力散戶資料.info()
-            #     if 'name' in 主力散戶資料.columns:
-            #         st.write("Unique names:", 主力散戶資料['name'].unique())
-            #     st.write("Tail:", 主力散戶資料.tail())
 
             # 財報與大盤抓取 (保持原樣)
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
             基本面資料 = dl.taiwan_stock_financial_statement(stock_id=股票代號, start_date=財報開始日)
-            大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=str(開始日期), end_date=str(結束日期))
+            大盤資料 = dl.taiwan_stock_daily(stock_id="TAIEX", start_date=start_date_str, end_date=end_date_str)
 
             # Debug print for 大盤資料 (Moved to st.write for Streamlit visibility)
             if DEBUG:
@@ -143,8 +130,8 @@ else: # 執行診斷 = True
 
             # 新增：大盤融資融券資料
             融資券總表 = dl.taiwan_stock_margin_purchase_short_sale_total(
-            start_date=str(開始日期),
-            end_date=str(結束日期)
+            start_date=start_date_str,
+            end_date=end_date_str
             )
             if DEBUG:
                 st.write("--- 融資券總表 原始資料 ---")
