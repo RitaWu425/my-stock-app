@@ -248,25 +248,17 @@ else: # 執行診斷 = True
                 holding_shares_per_data['holding_shares_level_start'] = holding_shares_per_data['holding_shares_level'].apply(lambda x: int(x.split('-')[0]) if '-' in x else (0 if x == '1-999' else int(x.replace('>', ''))))
                 holding_shares_per_data['holding_shares_level_end'] = holding_shares_per_data['holding_shares_level'].apply(lambda x: int(x.split('-')[1]) if '-' in x else (9999999999 if x == '1-999' else int(x.replace('>', ''))))
 
-                # 計算各持股級距的實際張數
-                # 假設平均值為 (start + end) / 2，對於開放區間 (>X張)，可以假設為某個大數或直接使用提供的總股數/人數
-                # 為了簡化，這裡我們直接用 'holding_shares_percent' * 總發行股數 來推估，但FinMind沒有提供總股數
-                # 更好的方式是直接用 holding_shares_level 和 people_count 來算
-                # 這裡假設 holding_shares_level 代表每個股東的持股張數，'percent'為該級距的總持股百分比
-                # 實際上，FinMind的'holding_shares_level'代表的是級距，'percent'是該級距股東的總持股百分比
-                # 我們需要的是每個級距的持股張數變動，而不是人數變動
-
                 # 這裡採用更直接的百分比變化來推估
                 # 計算散戶 (持股 < 400 張) 的總持股比例
                 retail_df = holding_shares_per_data[holding_shares_per_data['holding_shares_level_end'] < 400]
-                retail_total_percent_by_date = retail_df.groupby('date')['percent'].sum()
+                retail_total_percent_by_date = retail_df.groupby('date')['percent'].sum() if not retail_df.empty else pd.Series(dtype=float)
 
                 # 計算主力 (400 <= 持股 < 800 張) 的總持股比例
                 main_investor_df = holding_shares_per_data[
                     (holding_shares_per_data['holding_shares_level_start'] >= 400) &
-                    (holding_shares_per_data['holding_shares_level_start'] < 800) # 修正為小於800的範圍
+                    (holding_shares_per_data['holding_shares_level_end'] < 800) # 修正為小於800的範圍，且使用holding_shares_level_end
                 ]
-                main_investor_total_percent_by_date = main_investor_df.groupby('date')['percent'].sum()
+                main_investor_total_percent_by_date = main_investor_df.groupby('date')['percent'].sum() if not main_investor_df.empty else pd.Series(dtype=float)
 
                 # 將series轉換為DataFrame方便合併
                 df_combined_percent = pd.DataFrame({
@@ -275,20 +267,20 @@ else: # 執行診斷 = True
                 }).fillna(0).sort_index()
 
                 # 計算每日持股百分比的變化
+                # 由於holding_shares_per_data是週資料，diff會是週變化
                 df_combined_percent['retail_change'] = df_combined_percent['retail_percent'].diff().fillna(0)
                 df_combined_percent['main_investor_change'] = df_combined_percent['main_investor_percent'].diff().fillna(0)
 
                 # 取最新一天的變化作為今日買賣超，並假設總發行股數為100萬張 (實際應查詢，這裡用於概估)
-                # 由於FinMind這個資料集沒有提供總發行股數，我們以百分比變化為主要指標，若要轉換成張數，需要自行從其他地方補齊總股數資訊
-                # 為了顯示，我們將百分比變化乘以一個固定值，或直接顯示百分比變化
-                # 這裡假設將變化量乘以10000，以模擬張數變化，實際應根據總發行股數換算
                 share_conversion_factor = 1000000 # 假設總股本為100萬張，用於將百分比轉換為張數
 
-                主力買賣超_持股_percent = df_combined_percent['main_investor_change'].iloc[-1]
-                散戶買賣超_持股_percent = df_combined_percent['retail_change'].iloc[-1]
+                # 檢查df_combined_percent是否足夠長以取得iloc[-1]
+                主力買賣超_持股_percent = df_combined_percent['main_investor_change'].iloc[-1] if not df_combined_percent.empty and len(df_combined_percent) > 1 else 0
+                散戶買賣超_持股_percent = df_combined_percent['retail_change'].iloc[-1] if not df_combined_percent.empty and len(df_combined_percent) > 1 else 0
 
-                主力買賣超_持股 = int(主力買賣超_持股_percent / 100 * share_conversion_factor) # 轉換為概估張數
-                散戶買賣超_持股 = int(散戶買賣超_持股_percent / 100 * share_conversion_factor) # 轉換為概估張數
+                # 修正：移除多餘的 / 100，因為 'percent' 已經是百分比值 (例如 5.25 代表 5.25%)
+                主力買賣超_持股 = int(主力買賣超_持股_percent * share_conversion_factor)
+                散戶買賣超_持股 = int(散戶買賣超_持股_percent * share_conversion_factor)
 
 
             # 4. 借券與信用 (增加判定)
