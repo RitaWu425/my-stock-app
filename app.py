@@ -16,10 +16,13 @@ import subprocess # Import subprocess
 try:
     import plotly.express as px # Import plotly
     import plotly.io as pio
+    import plotly.graph_objects as go # Also import go here
 except ImportError:
+    # Use subprocess to install plotly if not found
     subprocess.check_call(['pip', 'install', 'plotly'])
-    import plotly.express as px
+    import plotly.express as px # Re-import after installation
     import plotly.io as pio
+    import plotly.graph_objects as go # Re-import after installation
 
 # 基礎設定
 warnings.filterwarnings('ignore')
