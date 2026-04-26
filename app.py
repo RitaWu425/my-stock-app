@@ -79,8 +79,8 @@ st.sidebar.header("📊 診斷參數設定")
 if not 執行診斷:
     st.title("🚀 台股籌碼智慧診斷系統")
     st.info("👈 請在左側輸入股票代號及日期，並按下「開始執行診斷」。")
+    st.markdown(f"💡 **目前系統判定日期**：資料擷取至 :green[{結束日期}]")
     st.markdown("""
-    💡 **目前系統判定日期**：資料擷取至 :green[{結束日期}]
     本系統整合以下深度分析：
     - **籌碼面**：三大法人動向、融資券變動、借券回補天數。
     - **技術面**：5MA 趨勢、RSI 強弱指標。
@@ -122,6 +122,16 @@ else: # 執行診斷 = True
             股價資料 = dl.taiwan_stock_daily(stock_id=股票代號, start_date=start_date_str, end_date=end_date_str)
             融資券資料 = dl.taiwan_stock_margin_purchase_short_sale(stock_id=股票代號, start_date=start_date_str, end_date=end_date_str)
             借券資料 = dl.get_data(dataset="TaiwanDailyShortSaleBalances", data_id=股票代號, start_date=start_date_str, end_date=end_date_str)
+            shareholding_data = dl.get_data(
+                dataset='TaiwanStockShareholding',
+                data_id=股票代號,
+                start_date=start_date_str,
+                end_date=end_date_str
+            )
+            if DEBUG:
+                st.write("--- 股權持股分級表 (TaiwanStockShareholding) 原始資料 ---")
+                st.write("Columns:", shareholding_data.columns.tolist())
+                st.write("Head:", shareholding_data.head())
 
             # 財報與大盤抓取 (保持原樣)
             財報開始日 = (pd.to_datetime(結束日期) - pd.Timedelta(days=365)).strftime('%Y-%m-%d')
@@ -248,8 +258,47 @@ else: # 執行診斷 = True
                 今日融資變動 = (融資券資料.iloc[-1]['MarginPurchaseTodayBalance'] - 融資券資料.iloc[-2]['MarginPurchaseTodayBalance'])
                 融券總餘額 = 融資券資料.iloc[-1]['ShortSaleTodayBalance']
 
-            # Removed 5. 股權持股分級分析 due to access restrictions
-            
+            # 5. 股權持股分級分析
+            if not shareholding_data.empty:
+                shareholding_data['date'] = pd.to_datetime(shareholding_data['date'])
+                
+                # Calculate total percent for main force and retail for each date
+                df_grouped = shareholding_data.groupby(['date', 'HoldingSharesLevel'])['percent'].sum().reset_index()
+
+                # Classify and sum
+                df_main_force = df_grouped[(df_grouped['HoldingSharesLevel'] >= 400) & (df_grouped['HoldingSharesLevel'] <= 800)]
+                df_retail = df_grouped[df_grouped['HoldingSharesLevel'] < 400]
+
+                main_force_daily_sum = df_main_force.groupby('date')['percent'].sum()
+                retail_daily_sum = df_retail.groupby('date')['percent'].sum()
+
+                if not main_force_daily_sum.empty:
+                    main_force_holdings = main_force_daily_sum.iloc[-1] # Latest main force holdings
+                if not retail_daily_sum.empty:
+                    retail_holdings = retail_daily_sum.iloc[-1] # Latest retail holdings
+
+                # Calculate weekly change
+                latest_date_sh = shareholding_data['date'].max()
+                one_week_ago_sh = latest_date_sh - timedelta(days=7)
+
+                latest_main_force_percent = main_force_daily_sum.get(latest_date_sh, 0.0)
+                latest_retail_percent = retail_daily_sum.get(latest_date_sh, 0.0)
+
+                main_force_week_ago_percent = 0.0
+                retail_week_ago_percent = 0.0
+
+                dates_before_week_ago_mf = main_force_daily_sum.index[main_force_daily_sum.index <= one_week_ago_sh]
+                if not dates_before_week_ago_mf.empty:
+                    closest_date_mf = dates_before_week_ago_mf.max()
+                    main_force_week_ago_percent = main_force_daily_sum.get(closest_date_mf, 0.0)
+
+                dates_before_week_ago_retail = retail_daily_sum.index[retail_daily_sum.index <= one_week_ago_sh]
+                if not dates_before_week_ago_retail.empty:
+                    closest_date_retail = dates_before_week_ago_retail.max()
+                    retail_week_ago_percent = retail_daily_sum.get(closest_date_retail, 0.0)
+
+                main_force_weekly_change = latest_main_force_percent - main_force_week_ago_percent
+                retail_weekly_change = latest_retail_percent - retail_week_ago_percent
 
         # --- 4. 網頁視覺化輸出 ---
         st.title(f"📈 {股票代號} {股名} 分析報告")
@@ -304,7 +353,7 @@ else: # 執行診斷 = True
             連續回補 = 0
             for i in range(len(借券資料)-1, -1, -1):
                 if 借券資料.iloc[i]['SBLShortSalesReturns'] > 借券資料.iloc[i]['SBLShortSalesShortSales']:
-                        連續回補 += 1
+                    連續回補 += 1
                 else:
                     break
 
@@ -386,8 +435,8 @@ else: # 執行診斷 = True
         st.markdown("---")
         st.subheader("📈 深度戰情圖表分析")
 
-        # 建立三個分頁 (移除「市場參與者動向」)
-        tab1, tab2, tab3 = st.tabs(["🛡️ 技術與借券診斷", "🏦 三大法人動向", "📉 基本面獲利分析"])
+        # 建立四個分頁 (新增「市場參與者動向」)
+        tab1, tab2, tab3, tab4 = st.tabs(["🛡️ 技術與借券診斷", "🏦 三大法人動向", "📉 基本面獲利分析", "🧑‍🤝‍🧑 股權持股分級"])
 
         # --- 分頁 1: 技術與借券診斷 ---
         with tab1:
@@ -562,8 +611,57 @@ else: # 執行診斷 = True
             except Exception as e:
                 st.info("ℹ️ 基本面資料正在更新中或暫時無法存取。")
 
-        # Removed 分頁 4: 股權持股分級 due to access restrictions
-        
+        # --- 分頁 4: 股權持股分級 ---
+        with tab4:
+            st.subheader(f"🧑‍🤝‍🧑 {股票代號} {股名} 股權持股分級分析")
+            if not shareholding_data.empty:
+                st.markdown(f"**分析日期範圍**：從 {shareholding_data['date'].min().strftime('%Y-%m-%d')} 到 {shareholding_data['date'].max().strftime('%Y-%m-%d')}")
+                col_mf, col_r = st.columns(2)
+                with col_mf:
+                    st.metric("主力持股比例", f"{main_force_holdings:.2f}%", f"{main_force_weekly_change:+.2f}% (週變動)")
+                    st.info("主力定義：持股介於 400 張至 800 張之間的大戶。")
+                with col_r:
+                    st.metric("散戶持股比例", f"{retail_holdings:.2f}%", f"{retail_weekly_change:+.2f}% (週變動)")
+                    st.info("散戶定義：持股小於 400 張的投資者。")
+
+                st.markdown("---")
+                st.markdown("#### 股權持股分級變化趨勢圖")
+
+                # Prepare data for plotting
+                plot_df = shareholding_data.copy()
+                plot_df['date'] = pd.to_datetime(plot_df['date'])
+
+                plot_df_main_force = plot_df[(plot_df['HoldingSharesLevel'] >= 400) & (plot_df['HoldingSharesLevel'] <= 800)]
+                plot_df_retail = plot_df[plot_df['HoldingSharesLevel'] < 400]
+
+                daily_main_force_percent = plot_df_main_force.groupby('date')['percent'].sum().reset_index()
+                daily_retail_percent = plot_df_retail.groupby('date')['percent'].sum().reset_index()
+
+                # Plotting
+                fig_sh, ax_sh = plt.subplots(figsize=(12, 6))
+                ax_sh.plot(daily_main_force_percent['date'], daily_main_force_percent['percent'], label='主力持股比例', color='purple', linewidth=2)
+                ax_sh.plot(daily_retail_percent['date'], daily_retail_percent['percent'], label='散戶持股比例', color='grey', linestyle='--', linewidth=2)
+
+                ax_sh.set_xlabel('日期')
+                ax_sh.set_ylabel('持股比例 (%)')
+                ax_sh.set_title(f'{股票代號} {股名} - 主力與散戶持股比例變化', fontsize=16)
+                ax_sh.legend()
+                ax_sh.grid(True, alpha=0.3)
+                ax_sh.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+                fig_sh.autofmt_xdate()
+                st.pyplot(fig_sh)
+
+                st.markdown("---")
+                st.markdown("#### 趨勢解讀")
+                if main_force_weekly_change > 0 and retail_weekly_change < 0:
+                    st.success("✅ **籌碼集中訊號**：主力持股比例上升，散戶持股比例下降。這通常代表籌碼正從散戶流向主力，有助於股價上漲。")
+                elif main_force_weekly_change < 0 and retail_weekly_change > 0:
+                    st.warning("⚠️ **籌碼分散訊號**：主力持股比例下降，散戶持股比例上升。這可能暗示主力正在出貨，籌碼分散對股價構成壓力。")
+                else:
+                    st.info("💡 **盤整觀察**：主力與散戶持股比例變動不大，市場可能處於盤整或觀望階段。")
+
+            else:
+                st.warning("⚠️ 查無股權持股分級資料可供分析。")
 
         # --- ８. 完整智慧診斷輸出 (策略建議強化版) ---
         st.markdown("---")
@@ -635,7 +733,7 @@ else: # 執行診斷 = True
                 動作 = "🚫 **操作動作：觀望 / 停損撤出**"
                 策略 = "法人反手倒貨且破均線，建議嚴守 5MA 停損，不宜攤平。"
             else:
-                動作 = "⌛ **操作動作：空手觀望**"
+                動作 = "⌛ **操作動作：空手觀望**" 
                 策略 = "方向不明朗，建議等待股價帶量站回 5MA 再行佈局。"
 
             # 3. 顯示結果 (使用 st.info 確保樣式統一)
